@@ -67,8 +67,6 @@ For Docker users who aren't using the Home Assistant add-on, you have three depl
 
 **Option A: Docker Compose (recommended):**
 
-> **Note:** Pre-built Docker images will be available publicly once this add-on is officially released. Until then, use Option C to build locally.
-
 1. Download the docker-compose.yml file:
    ```bash
    curl -o docker-compose.yml https://raw.githubusercontent.com/saihgupr/HomeAssistantVersionControlBeta/main/docker-compose.yml
