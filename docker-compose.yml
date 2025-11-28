@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  ha-version-control:
+    image: ghcr.io/saihgupr/homeassistantversioncontrolbeta:latest
+    container_name: ha-version-control
+    ports:
+      - "54001:54001"
+    environment:
+      # Set your timezone
+      - TZ=America/New_York
+    volumes:
+      # Mount your Home Assistant config directory
+      # This directory will be tracked for changes
+      - /path/to/your/ha/config:/config
+    restart: unless-stopped
+
