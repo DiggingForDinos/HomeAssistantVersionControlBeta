@@ -159,7 +159,7 @@
     "default": "Default",
     "name_asc": "Name (A-Z)",
     "name_desc": "Name (Z-A)",
-    "date_desc": "Recently Modified"
+    "recently_modified": "Recently Modified"
   },
   "history": {
     "no_changes": "No changes found in history",

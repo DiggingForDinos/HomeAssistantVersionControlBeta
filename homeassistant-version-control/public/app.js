@@ -6,7 +6,7 @@ let modalData = null;
 let allCommits = [];
 let currentlyDisplayedCommitHash = null;
 let sortState = {
-  files: localStorage.getItem('sort_files') || 'date_desc',
+  files: localStorage.getItem('sort_files') || 'recently_modified',
   automations: localStorage.getItem('sort_automations') || 'name_asc',
   scripts: localStorage.getItem('sort_scripts') || 'name_asc'
 };
@@ -167,6 +167,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const themeLight = document.getElementById('themeLight');
   const themeDark = document.getElementById('themeDark');
 
+  // Default to Dark Mode if not set (null) or explicitly true
   if (darkMode === 'false') {
     document.body.classList.remove('dark-mode');
     if (themeLight) themeLight.checked = true;
@@ -1232,7 +1233,7 @@ function sortItems(items, sortType) {
         const nameB = (b.name || b.path || '').replace(/^\.+/, ''); // Strip leading dots for sorting
         return nameB.localeCompare(nameA);
       });
-    case 'date_desc':
+    case 'recently_modified':
       return sorted.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
     default:
       return sorted;
@@ -1265,7 +1266,7 @@ async function switchMode(mode) {
     leftPanelActions.style.display = 'block';
 
     // Ensure valid sort state for this mode (prevent selecting removed option)
-    if ((mode === 'automations' || mode === 'scripts') && sortState[mode] === 'date_desc') {
+    if ((mode === 'automations' || mode === 'scripts') && sortState[mode] === 'recently_modified') {
       sortState[mode] = 'default';
       localStorage.setItem(`sort_${mode}`, 'default');
     }
@@ -1291,7 +1292,7 @@ async function switchMode(mode) {
   }
 
   // Handle sort options visibility
-  let dateDescOption = sortSelect.querySelector('option[value="date_desc"]');
+  let dateDescOption = sortSelect.querySelector('option[value="recently_modified"]');
   let defaultOption = sortSelect.querySelector('option[value="default"]');
 
   if (mode === 'automations' || mode === 'scripts') {
@@ -1312,9 +1313,9 @@ async function switchMode(mode) {
     }
 
     // 3. Validate current selection
-    // Only force change if the current selection is invalid (date_desc)
+    // Only force change if the current selection is invalid (recently_modified)
     // We respect 'default', 'name_asc', 'name_desc' if the user chose them
-    if (sortSelect.value === 'date_desc') {
+    if (sortSelect.value === 'recently_modified') {
       const newValue = 'name_asc';
       sortSelect.value = newValue;
       sortState[mode] = newValue;
@@ -1332,17 +1333,17 @@ async function switchMode(mode) {
     // 2. Ensure "Recently Modified" exists (add back if missing)
     if (!dateDescOption) {
       const newOption = document.createElement('option');
-      newOption.value = 'date_desc';
-      newOption.textContent = t('sort.date_desc');
-      newOption.setAttribute('data-i18n', 'sort.date_desc');
+      newOption.value = 'recently_modified';
+      newOption.textContent = t('sort.recently_modified');
+      newOption.setAttribute('data-i18n', 'sort.recently_modified');
       sortSelect.appendChild(newOption);
     }
 
     // 3. Validate current selection
     // Only force change if the current selection is invalid (default)
-    // We respect 'date_desc', 'name_asc', 'name_desc' if the user chose them
+    // We respect 'recently_modified', 'name_asc', 'name_desc' if the user chose them
     if (sortSelect.value === 'default') {
-      const newValue = 'date_desc';
+      const newValue = 'recently_modified';
       sortSelect.value = newValue;
       sortState[mode] = newValue;
       localStorage.setItem(`sort_${mode}`, newValue);
