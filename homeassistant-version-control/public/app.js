@@ -2543,7 +2543,7 @@ async function loadAutomationHistoryDiff() {
 
   const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('automationDiffContent'), {
     leftLabel: 'Current Version',
-    rightLabel: `Version ${currentAutomationHistoryIndex + 1}`,
+    rightLabel: `Version ${currentCommit.hash.substring(0, 8)}`,
     startLineOffset: startLine,
     filePath: 'automations.yaml'
   });
@@ -2805,7 +2805,7 @@ async function loadScriptHistoryDiff() {
 
   const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('scriptDiffContent'), {
     leftLabel: 'Current Version',
-    rightLabel: `Version ${currentScriptHistoryIndex + 1}`,
+    rightLabel: `Version ${currentCommit.hash.substring(0, 8)}`,
     startLineOffset: startLine,
     filePath: 'scripts.yaml'
   });
@@ -3079,7 +3079,7 @@ async function loadFileHistoryDiff(filePath) {
   // Always: current on left, compareToContent on right
   const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('fileDiffContent'), {
     leftLabel: 'Current Version',
-    rightLabel: `Version ${currentFileHistoryIndex + 1}`,
+    rightLabel: `Version ${currentCommit.hash.substring(0, 8)}`,
     filePath: filePath
   });
 
@@ -3393,11 +3393,29 @@ function generateDiff(oldText, newText, options = {}) {
   if (!hunks.length) {
     if (returnNullIfNoChanges) return null;
 
+    // Show the content as "Current Version" instead of empty state
+    const lines = safeOldText.split(/\r\n?|\n/);
+    const lineCount = lines.length;
+
+    let contentHtml = '';
+    for (let i = 0; i < lineCount; i++) {
+      contentHtml += `
+        <div class="diff-line diff-line-context">
+          <span class="diff-line-marker"> </span>
+          <span class="diff-line-num">${i + 1 + startLineOffset}</span>
+          <pre class="diff-line-text"><code>${escapeHtml(lines[i])}</code></pre>
+        </div>
+      `;
+    }
+
     return `
-      <div class="diff-empty-state">
-        <div class="diff-empty-card">
-          <h3>No visible differences</h3>
-          <p>Everything matches between versions.</p>
+      <div class="segmented-control" style="cursor: default; grid-template-columns: 1fr;">
+        <div class="segmented-control-slider" style="width: calc(100% - 8px);"></div>
+        <label style="cursor: default; color: var(--text-primary);">Current Version</label>
+      </div>
+      <div class="diff-viewer-shell ${currentDiffStyle}">
+        <div class="diff-viewer-unified">
+          ${contentHtml}
         </div>
       </div>
     `;
