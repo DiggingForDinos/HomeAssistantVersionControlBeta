@@ -153,8 +153,6 @@ The add-on automatically tracks configuration files while ignoring system files.
 | `esphome/*.yaml` | Temporary files |
 | All other `.yaml` and `.yml` files | |
 
-*You can customize exclusions by editing the `.gitignore` file in your config folder.*
-
 ---
 
 <details>
