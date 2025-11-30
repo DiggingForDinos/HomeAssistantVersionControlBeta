@@ -348,6 +348,22 @@
                 <option value="style-8">Split Highlight</option>
               </select>
             </div>
+
+            <div class="setting-item" style="margin-bottom: 20px;">
+              <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="color: var(--text-primary); font-size: 14px;">Diff Change Mode</span>
+                  <span style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">
+                    Show what each version changed
+                  </span>
+                </div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="diffModeShifted" style="display: none;" checked
+                    onchange="toggleDiffMode(this.checked)">
+                  <label for="diffModeShifted" class="toggle-slider"></label>
+                </div>
+              </label>
+            </div>
           </div>
 
           <!-- Group 3: Appearance -->

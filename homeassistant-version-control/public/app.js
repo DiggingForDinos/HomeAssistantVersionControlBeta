@@ -58,6 +58,9 @@ const diffStyleOptions = [
 // Diff view format management
 let diffViewFormat = localStorage.getItem('diffViewFormat') || 'split';
 
+// Diff mode management - 'shifted' shows what each version changed, 'standard' is normal
+let diffMode = localStorage.getItem('diffMode') || 'shifted';
+
 // Localization
 let translations = {};
 let currentLanguage = 'en';
@@ -260,6 +263,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     } else {
       diffViewUnified.checked = true;
     }
+  }
+
+  // Load diff mode setting (checkbox toggle)
+  const diffModeShifted = document.getElementById('diffModeShifted');
+  if (diffModeShifted) {
+    diffModeShifted.checked = (diffMode === 'shifted');
   }
 
   // Load diff style setting
@@ -893,6 +902,15 @@ function toggleDiffViewFormat(isSplit) {
   // showNotification(`Diff view: ${isSplit ? 'Side-by-Side' : 'Unified'}`, 'success', 1500);
 
   // Re-render the currently displayed view
+  refreshCurrentView();
+}
+
+function toggleDiffMode(isChecked) {
+  const mode = isChecked ? 'shifted' : 'standard';
+  diffMode = mode;
+  localStorage.setItem('diffMode', mode);
+
+  // Refresh the current view to apply new diff mode
   refreshCurrentView();
 }
 
@@ -1770,6 +1788,21 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
   // Tab-specific filter: Timeline shows all, others show only changed files
   const showChangedOnly = currentMode !== 'timeline';
 
+  // Determine if we need to use shifted mode for Timeline
+  let compareHash = hash; // Default: compare to the commit being viewed
+  let isOldestCommit = false;
+
+  if (diffMode === 'shifted') {
+    // Find this commit's position in allCommits
+    const commitIndex = allCommits.findIndex(c => c.hash === hash);
+    isOldestCommit = commitIndex === allCommits.length - 1;
+
+    if (!isOldestCommit && commitIndex !== -1) {
+      // Get the next older commit hash
+      compareHash = allCommits[commitIndex + 1].hash;
+    }
+  }
+
   // For each file, get current content and commit version, then compare
   let allDiffsHtml = '';
   let filesWithChanges = [];
@@ -1777,13 +1810,30 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
 
   for (const file of files) {
     try {
+      // For oldest commit in shifted mode, don't try to fetch/compare - just show files
+      if (diffMode === 'shifted' && isOldestCommit) {
+        // Get commit version to display the file
+        const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(file.file)}&commitHash=${hash}`);
+        const commitData = await commitResponse.json();
+        let commitContent = commitData.success ? commitData.content : '';
+
+        // Remove filename if present
+        if (commitContent.startsWith(file.file)) {
+          commitContent = commitContent.substring(commitContent.indexOf('\n') + 1);
+        }
+
+        const commitLines = commitContent.split(/\r\n?|\n/);
+        filesWithoutChanges.push({ file, commitLines });
+        continue;
+      }
+
       // Get current file content
       const currentResponse = await fetch(`${API}/file-content?filePath=${encodeURIComponent(file.file)}`);
       const currentData = await currentResponse.json();
       let currentContent = currentData.success ? currentData.content : '';
 
-      // Get commit version content
-      const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(file.file)}&commitHash=${hash}`);
+      // Get commit version content (use compareHash which may be older commit in shifted mode)
+      const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(file.file)}&commitHash=${compareHash}`);
       const commitData = await commitResponse.json();
       let commitContent = commitData.success ? commitData.content : '';
 
@@ -1800,9 +1850,14 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
       const commitLines = commitContent.split(/\r\n?|\n/);
 
       // Use the new generateDiff function for consistent rendering
+      let rightLabel = `Version ${hash.substring(0, 8)}`;
+      if (diffMode === 'shifted') {
+        rightLabel = `Version ${compareHash.substring(0, 8)}`;
+      }
+
       const diffHtml = generateDiff(currentContent, commitContent, {
         leftLabel: 'Current Version',
-        rightLabel: `Version ${hash.substring(0, 8)}`,
+        rightLabel: rightLabel,
         bannerText: file.file,
         returnNullIfNoChanges: true,
         filePath: file.file
@@ -2169,27 +2224,34 @@ async function showFileHistory(filePath) {
           const commitData = await commitResponse.json();
           const commitContent = commitData.success ? commitData.content : '';
 
-          // Use generateDiff to check if there are actual visible differences from the CURRENT version
-          // We want to filter out any history item that is identical to what is currently live
-          const diffVsCurrent = generateDiff(commitContent, currentContent, {
-            returnNullIfNoChanges: true,
-            filePath: filePath
-          });
-
-          if (diffVsCurrent === null) continue; // Skip if identical to live
-
-          // Check against the last kept version to avoid consecutive duplicates
-          if (lastKeptContent !== null) {
-            const diffVsLast = generateDiff(commitContent, lastKeptContent, {
+          // In shifted mode, include ALL versions since we compare between consecutive versions
+          // In standard mode, filter out versions identical to current
+          if (diffMode === 'shifted') {
+            // Always include when in shifted mode
+            commit.content = commitContent;
+            versionsWithChanges.push(commit);
+          } else {
+            // Check if there are actual visible differences from the CURRENT version
+            const diffVsCurrent = generateDiff(commitContent, currentContent, {
               returnNullIfNoChanges: true,
               filePath: filePath
             });
-            if (diffVsLast === null) continue; // Skip if identical to the previously added history item
-          }
 
-          versionsWithChanges.push(commit);
-          lastKeptContent = commitContent;
-          // If no changes, skip this version and keep previousContent the same
+            if (diffVsCurrent === null) continue; // Skip if identical to live
+
+            // Check against the last kept version to avoid consecutive duplicates
+            if (lastKeptContent !== null) {
+              const diffVsLast = generateDiff(commitContent, lastKeptContent, {
+                returnNullIfNoChanges: true,
+                filePath: filePath
+              });
+              if (diffVsLast === null) continue; // Skip if identical to the previously added history item
+            }
+
+            commit.content = commitContent;
+            versionsWithChanges.push(commit);
+            lastKeptContent = commitContent;
+          }
         } catch (error) {
           console.error(`Error checking commit ${commit.hash}:`, error);
           // Include it if we can't check (fallback)
@@ -2298,30 +2360,38 @@ async function showAutomationHistory(automationId) {
       for (const commit of data.history) {
         const commitContent = dumpYaml(commit.automation);
 
-        // Check if there are visible differences compared to the CURRENT version
-        // We want to filter out any history item that is identical to what is currently live
-        const diffVsCurrent = generateDiff(commitContent, currentContent, {
-          returnNullIfNoChanges: true,
-          filePath: auto.file
-        });
-
-        if (diffVsCurrent === null) continue; // Skip if identical to live
-
-        // Check against the last kept version to avoid consecutive duplicates
-        if (lastKeptContent !== null) {
-          const diffVsLast = generateDiff(commitContent, lastKeptContent, {
+        // In shifted mode, include ALL versions since we compare between consecutive versions
+        // In standard mode, filter out versions identical to current
+        if (diffMode === 'shifted') {
+          // Always include when in shifted mode
+          versionsWithChanges.push({
+            ...commit,
+            yamlContent: commitContent
+          });
+        } else {
+          // Check if there are visible differences compared to the CURRENT version
+          const diffVsCurrent = generateDiff(commitContent, currentContent, {
             returnNullIfNoChanges: true,
             filePath: auto.file
           });
-          if (diffVsLast === null) continue; // Skip if identical to the previously added history item
-        }
 
-        versionsWithChanges.push({
-          ...commit,
-          yamlContent: commitContent
-        });
-        lastKeptContent = commitContent;
-        // If no changes, skip this version and keep previousContent the same
+          if (diffVsCurrent === null) continue; // Skip if identical to live
+
+          // Check against the last kept version to avoid consecutive duplicates
+          if (lastKeptContent !== null) {
+            const diffVsLast = generateDiff(commitContent, lastKeptContent, {
+              returnNullIfNoChanges: true,
+              filePath: auto.file
+            });
+            if (diffVsLast === null) continue; // Skip if identical to the previously added history item
+          }
+
+          versionsWithChanges.push({
+            ...commit,
+            yamlContent: commitContent
+          });
+          lastKeptContent = commitContent;
+        }
       }
 
       if (versionsWithChanges.length > 0) {
@@ -2442,19 +2512,40 @@ async function loadAutomationHistoryDiff() {
   document.getElementById('autoPrevBtn').disabled = currentAutomationHistoryIndex === 0;
   document.getElementById('autoNextBtn').disabled = currentAutomationHistoryIndex === currentAutomationHistory.length - 1;
 
-  // Get the current automation content for comparison
   const auto = allAutomations.find(a => a.id === currentSelection.id);
-  const currentContent = dumpYaml(auto.content);
-  const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
+  if (!auto) return;
 
-  // Use renderDiff for consistent styling
+  const currentContent = dumpYaml(auto.content);
+  let compareToContent = '';
+
+  if (diffMode === 'shifted') {
+    // Shifted mode: compare current to NEXT older version
+    if (currentAutomationHistoryIndex === currentAutomationHistory.length - 1) {
+      // Oldest version - no older version to compare to
+      document.getElementById('automationDiffContent').innerHTML = `
+        <div class="empty" style="padding: 40px; text-align: center;">
+          <div style="font-size: 16px; color: var(--text-primary); margin-bottom: 8px;">Oldest Version</div>
+          <div style="font-size: 14px; color: var(--text-secondary);">No older version to compare current against</div>
+        </div>
+      `;
+      document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreAutomationVersion('${auto.id}')" title="This will overwrite the current automation with this version">Confirm Restore</button>`;
+      return;
+    }
+
+    const nextOlderCommit = currentAutomationHistory[currentAutomationHistoryIndex + 1];
+    compareToContent = nextOlderCommit.yamlContent || dumpYaml(nextOlderCommit.automation);
+  } else {
+    // Standard mode: compare current to the version being viewed
+    compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
+  }
+
   const startLine = (auto && auto.line) ? (auto.line - 1) : 0;
 
-  const diffHtml = renderDiff(commitContent, currentContent, document.getElementById('automationDiffContent'), {
+  const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('automationDiffContent'), {
     leftLabel: 'Current Version',
     rightLabel: `Version ${currentAutomationHistoryIndex + 1}`,
     startLineOffset: startLine,
-    filePath: 'automations.yaml' // Treat as YAML for normalization and expand functionality
+    filePath: 'automations.yaml'
   });
 }
 
@@ -2531,30 +2622,38 @@ async function showScriptHistory(scriptId) {
       for (const commit of data.history) {
         const commitContent = dumpYaml(commit.script);
 
-        // Check if there are visible differences compared to the CURRENT version
-        // We want to filter out any history item that is identical to what is currently live
-        const diffVsCurrent = generateDiff(commitContent, currentContent, {
-          returnNullIfNoChanges: true,
-          filePath: script.file
-        });
-
-        if (diffVsCurrent === null) continue; // Skip if identical to live
-
-        // Check against the last kept version to avoid consecutive duplicates
-        if (lastKeptContent !== null) {
-          const diffVsLast = generateDiff(commitContent, lastKeptContent, {
+        // In shifted mode, include ALL versions since we compare between consecutive versions
+        // In standard mode, filter out versions identical to current
+        if (diffMode === 'shifted') {
+          // Always include when in shifted mode
+          versionsWithChanges.push({
+            ...commit,
+            yamlContent: commitContent
+          });
+        } else {
+          // Check if there are visible differences compared to the CURRENT version
+          const diffVsCurrent = generateDiff(commitContent, currentContent, {
             returnNullIfNoChanges: true,
             filePath: script.file
           });
-          if (diffVsLast === null) continue; // Skip if identical to the previously added history item
-        }
 
-        versionsWithChanges.push({
-          ...commit,
-          yamlContent: commitContent
-        });
-        lastKeptContent = commitContent;
-        // If no changes, skip this version and keep previousContent the same
+          if (diffVsCurrent === null) continue; // Skip if identical to live
+
+          // Check against the last kept version to avoid consecutive duplicates
+          if (lastKeptContent !== null) {
+            const diffVsLast = generateDiff(commitContent, lastKeptContent, {
+              returnNullIfNoChanges: true,
+              filePath: script.file
+            });
+            if (diffVsLast === null) continue; // Skip if identical to the previously added history item
+          }
+
+          versionsWithChanges.push({
+            ...commit,
+            yamlContent: commitContent
+          });
+          lastKeptContent = commitContent;
+        }
       }
 
       if (versionsWithChanges.length > 0) {
@@ -2675,19 +2774,40 @@ async function loadScriptHistoryDiff() {
   document.getElementById('scriptPrevBtn').disabled = currentScriptHistoryIndex === 0;
   document.getElementById('scriptNextBtn').disabled = currentScriptHistoryIndex === currentScriptHistory.length - 1;
 
-  // Get the current script content for comparison
   const script = allScripts.find(s => s.id === currentSelection.id);
-  const currentContent = dumpYaml(script.content);
-  const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
+  if (!script) return;
 
-  // Use renderDiff for consistent styling
+  const currentContent = dumpYaml(script.content);
+  let compareToContent = '';
+
+  if (diffMode === 'shifted') {
+    // Shifted mode: compare current to NEXT older version
+    if (currentScriptHistoryIndex === currentScriptHistory.length - 1) {
+      // Oldest version - no older version to compare to
+      document.getElementById('scriptDiffContent').innerHTML = `
+        <div class="empty" style="padding: 40px; text-align: center;">
+          <div style="font-size: 16px; color: var(--text-primary); margin-bottom: 8px;">Oldest Version</div>
+          <div style="font-size: 14px; color: var(--text-secondary);">No older version to compare current against</div>
+        </div>
+      `;
+      document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreScriptVersion('${script.id}')" title="This will overwrite the current script with this version">Confirm Restore</button>`;
+      return;
+    }
+
+    const nextOlderCommit = currentScriptHistory[currentScriptHistoryIndex + 1];
+    compareToContent = nextOlderCommit.yamlContent || dumpYaml(nextOlderCommit.script);
+  } else {
+    // Standard mode: compare current to the version being viewed
+    compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
+  }
+
   const startLine = (script && script.line) ? (script.line - 1) : 0;
 
-  const diffHtml = renderDiff(commitContent, currentContent, document.getElementById('scriptDiffContent'), {
+  const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('scriptDiffContent'), {
     leftLabel: 'Current Version',
     rightLabel: `Version ${currentScriptHistoryIndex + 1}`,
     startLineOffset: startLine,
-    filePath: 'scripts.yaml' // Treat as YAML for normalization and expand functionality
+    filePath: 'scripts.yaml'
   });
 }
 
@@ -2923,27 +3043,45 @@ async function loadFileHistoryDiff(filePath) {
   document.getElementById('prevBtn').disabled = currentFileHistoryIndex === 0;
   document.getElementById('nextBtn').disabled = currentFileHistoryIndex === currentFileHistory.length - 1;
 
-  // Get the current file content for comparison
+  // Get current file content
   const currentContentResponse = await fetch(`${API}/file-content?filePath=${encodeURIComponent(filePath)}`);
   const currentContentData = await currentContentResponse.json();
   const currentContent = currentContentData.success ? currentContentData.content : '';
 
-  // Get the content of the commit
-  const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}`);
-  const commitData = await commitResponse.json();
-  const commitContent = commitData.success ? commitData.content : '';
+  let compareToContent = '';
 
-  // Use renderDiff for consistent styling
-  const diffHtml = renderDiff(commitContent, currentContent, document.getElementById('fileDiffContent'), {
+  if (diffMode === 'shifted') {
+    // Shifted mode: compare current to NEXT older version (not the one being viewed)
+    if (currentFileHistoryIndex === currentFileHistory.length - 1) {
+      // This is the oldest version - no older version to compare to
+      document.getElementById('fileDiffContent').innerHTML = `
+        <div class="empty" style="padding: 40px; text-align: center;">
+          <div style="font-size: 16px; color: var(--text-primary); margin-bottom: 8px;">Oldest Version</div>
+          <div style="font-size: 14px; color: var(--text-secondary);">No older version to compare current against</div>
+        </div>
+      `;
+      document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreFileVersion('${filePath}')" title="This will overwrite the current file with this version">Confirm Restore</button>`;
+      return;
+    }
+
+    // Get the NEXT older version (index + 1 because array is newest first)
+    const nextOlderCommit = currentFileHistory[currentFileHistoryIndex + 1];
+    const olderResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${nextOlderCommit.hash}`);
+    const olderData = await olderResponse.json();
+    compareToContent = olderData.success ? olderData.content : '';
+  } else {
+    // Standard mode: compare current to the version being viewed
+    const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}`);
+    const commitData = await commitResponse.json();
+    compareToContent = commitData.success ? commitData.content : '';
+  }
+
+  // Always: current on left, compareToContent on right
+  const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('fileDiffContent'), {
     leftLabel: 'Current Version',
     rightLabel: `Version ${currentFileHistoryIndex + 1}`,
     filePath: filePath
   });
-
-  // Show restore button only if there are changes (renderDiff returns null/empty if no changes and returnNullIfNoChanges is true, but here it returns string)
-  // renderDiff returns the HTML string. If it's empty or just empty state, we might want to know.
-  // But generateDiff returns empty state HTML if no changes, so diffHtml will be truthy.
-  // The original code checked if (diffHtml).
 
   if (diffHtml) {
     document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreFileVersion('${filePath}')" title="This will overwrite the current file with this version">Confirm Restore</button>`;
