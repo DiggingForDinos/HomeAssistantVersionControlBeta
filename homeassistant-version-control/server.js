@@ -950,16 +950,21 @@ app.post('/api/restore-file', async (req, res) => {
 // Restore all files in a commit
 app.post('/api/restore-commit', async (req, res) => {
   try {
-    const { commitHash } = req.body;
+    const { sourceHash, targetHash, commitHash } = req.body;
 
-    if (!commitHash) {
-      return res.status(400).json({ success: false, error: 'commitHash is required' });
+    // Backward compatibility: if only commitHash provided, use it for both source and target
+    const source = sourceHash || commitHash;
+    const target = targetHash || commitHash;
+
+    if (!source || !target) {
+      return res.status(400).json({ success: false, error: 'sourceHash and targetHash (or commitHash) required' });
     }
 
-    console.log(`[restore] Restoring all files to commit ${commitHash.substring(0, 8)}`);
+    console.log(`[restore] Finding files from commit ${source.substring(0, 8)}`);
+    console.log(`[restore] Restoring to version ${target.substring(0, 8)}`);
 
-    // Get the list of files in the commit using git show (more reliable than log for this)
-    const status = await gitRaw(['show', `${commitHash}`, '--name-status', '--pretty=format:']);
+    // Get the list of files in the SOURCE commit using git show (files that were changed)
+    const status = await gitRaw(['show', `${source}`, '--name-status', '--pretty=format:']);
     console.log(`[restore] Git show output:`, status);
 
     // Parse the output - each line is like "M\tfilename" or "A\tfilename"
@@ -969,7 +974,7 @@ app.post('/api/restore-commit', async (req, res) => {
       return parts[1]; // Second column is the filename
     }).filter(f => f);
 
-    console.log(`[restore] Found ${files.length} files to restore:`, files);
+    console.log(`[restore] Found ${files.length} files from source commit:`, files);
 
     // Filter to only include config files based on configured extensions
     const allowedExtensions = getConfiguredExtensions();
@@ -988,8 +993,8 @@ app.post('/api/restore-commit', async (req, res) => {
     // If no config files found, try alternative method
     if (configFiles.length === 0) {
       console.log('[restore] No config files found with git show, trying git diff...');
-      // As a fallback, get files changed in this commit vs its parent
-      const diff = await gitDiff([`${commitHash}^`, commitHash, '--name-only']);
+      // As a fallback, get files changed in source commit vs its parent
+      const diff = await gitDiff([`${source}^`, source, '--name-only']);
       const altFiles = diff.split('\n').filter(line => line.trim());
       console.log(`[restore] Found ${altFiles.length} files using diff:`, altFiles);
 
@@ -1010,10 +1015,10 @@ app.post('/api/restore-commit', async (req, res) => {
     files.length = 0;
     files.push(...configFiles);
 
-    // Restore each file - file watcher will detect and auto-commit all changes
+    // Restore each file to TARGET version - file watcher will detect and auto-commit all changes
     for (const file of files) {
-      console.log(`[restore] Restoring: ${file}`);
-      await gitCheckout([commitHash, '--', file]);
+      console.log(`[restore] Restoring ${file} to version ${target.substring(0, 8)}`);
+      await gitCheckout([target, '--', file]);
     }
 
     console.log(`[restore] All files restored (${files.length} files)`);
@@ -1042,7 +1047,9 @@ app.post('/api/restore-commit', async (req, res) => {
       success: true,
       filesRestored: files.length,
       files: files,
-      commitHash: commitHash.substring(0, 8),
+      sourceHash: source.substring(0, 8),
+      targetHash: target.substring(0, 8),
+      commitHash: target.substring(0, 8), // For backward compatibility
       automationReloaded,
       scriptReloaded
     });

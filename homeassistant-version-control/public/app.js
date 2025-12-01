@@ -1985,11 +1985,11 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
       <button 
         id="restore-commit-btn"
         class="btn restore" 
-        onmousedown="handleRestoreButtonDown('${hash}')"
-        onmouseup="handleRestoreButtonUp('${hash}')"
+        onmousedown="handleRestoreButtonDown('${hash}', '${compareHash}')"
+        onmouseup="handleRestoreButtonUp('${hash}', '${compareHash}')"
         onmouseleave="handleRestoreButtonCancel()"
-        ontouchstart="handleRestoreButtonDown('${hash}')"
-        ontouchend="handleRestoreButtonUp('${hash}')"
+        ontouchstart="handleRestoreButtonDown('${hash}', '${compareHash}')"
+        ontouchend="handleRestoreButtonUp('${hash}', '${compareHash}')"
         ontouchcancel="handleRestoreButtonCancel()">
         <span id="restore-btn-text">${t('timeline.restore_commit')}</span>
       </button>
@@ -4476,12 +4476,15 @@ async function restoreFile(file, hash) {
   }
 }
 
-async function restoreCommit(hash) {
+async function restoreCommit(sourceHash, targetHash) {
   try {
     const response = await fetch(`${API}/restore-commit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commitHash: hash })
+      body: JSON.stringify({
+        sourceHash: sourceHash,
+        targetHash: targetHash
+      })
     });
     const data = await response.json();
 
@@ -4539,10 +4542,12 @@ async function restoreCommit(hash) {
 // Long-press handling for hard reset
 let restorePressTimer = null;
 let restorePressStage = 0; // 0=normal, 1=holding, 2=unlocked
-let currentRestoreHash = null;
+let currentRestoreSourceHash = null;
+let currentRestoreTargetHash = null;
 
-function handleRestoreButtonDown(hash) {
-  currentRestoreHash = hash;
+function handleRestoreButtonDown(sourceHash, targetHash) {
+  currentRestoreSourceHash = sourceHash;
+  currentRestoreTargetHash = targetHash;
   restorePressStage = 1;
 
   const btn = document.getElementById('restore-commit-btn');
@@ -4566,17 +4571,18 @@ function handleRestoreButtonDown(hash) {
   }, 2000);
 }
 
-function handleRestoreButtonUp(hash) {
+function handleRestoreButtonUp(sourceHash, targetHash) {
   clearTimeout(restorePressTimer);
 
   const btn = document.getElementById('restore-commit-btn');
 
   if (restorePressStage === 2) {
     // Unlocked! Show hard reset confirmation
-    showHardResetConfirmation(hash);
+    // For hard reset, use targetHash (the version to reset to)
+    showHardResetConfirmation(targetHash);
   } else {
     // Normal click - restore just this commit's files
-    restoreCommit(hash);
+    restoreCommit(sourceHash, targetHash);
   }
 
   // Reset state
@@ -4590,7 +4596,8 @@ function handleRestoreButtonCancel() {
 
 function resetRestoreButtonState() {
   restorePressStage = 0;
-  currentRestoreHash = null;
+  currentRestoreSourceHash = null;
+  currentRestoreTargetHash = null;
 
   const btn = document.getElementById('restore-commit-btn');
   if (btn) {
