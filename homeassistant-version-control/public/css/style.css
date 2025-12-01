@@ -1066,6 +1066,7 @@ input:checked+.toggle-slider:before {
 .file-history-viewer {
   display: flex;
   flex-direction: column;
+  scrollbar-gutter: stable;
 }
 
 .file-history-header {
@@ -1547,6 +1548,7 @@ body.dark-mode .color-circle.selected {
   display: flex;
   flex-direction: column;
   width: 100%;
+  scrollbar-gutter: stable;
 }
 
 .diff-viewer-unified .diff-line {
@@ -2338,4 +2340,14 @@ input[type=number] {
 .file-diff-content {
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+/* When segmented-control is followed by diff-viewer-shell (no-change case), connect them */
+.segmented-control + .diff-viewer-shell {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.segmented-control:has(+ .diff-viewer-shell) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
