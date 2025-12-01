@@ -2287,12 +2287,21 @@ async function showFileHistory(filePath) {
 
       // If no versions with changes were found, show current content as a no-change diff
       if (currentFileHistory.length === 0) {
+        // Use the date from the most recent commit in the full history
+        const mostRecentDate = data.log.all.length > 0 ? data.log.all[0].date : new Date().toISOString();
+
         document.getElementById('rightPanelTitle').textContent = filePath.split('/').pop();
+        document.getElementById('itemsSubtitle').textContent = '';
         document.getElementById('rightPanelActions').innerHTML = '';
 
-        // Create a diff view container and render current content
+        // Create a diff view container with header matching the change view
         document.getElementById('rightPanel').innerHTML = `
           <div class="file-history-viewer">
+            <div class="file-history-header">
+              <div class="file-history-info">
+                <div class="history-position">Version 1 of 1 — ${formatDateForBanner(mostRecentDate)}</div>
+              </div>
+            </div>
             <div id="fileDiffContent"></div>
           </div>
         `;
@@ -2457,12 +2466,21 @@ async function showAutomationHistory(automationId) {
 
       // If no versions with changes were found, show current content as a no-change diff
       if (currentAutomationHistory.length === 0) {
+        // Use the date from the most recent commit in the full history
+        const mostRecentDate = data.history.length > 0 ? data.history[0].date : new Date().toISOString();
+
         document.getElementById('rightPanelTitle').textContent = auto ? auto.name : 'Automation';
+        document.getElementById('itemsSubtitle').textContent = '';
         document.getElementById('rightPanelActions').innerHTML = '';
 
-        // Create a diff view container and render current content
+        // Create a diff view container with header matching the change view
         document.getElementById('rightPanel').innerHTML = `
           <div class="file-history-viewer">
+            <div class="file-history-header">
+              <div class="file-history-info">
+                <div class="history-position">Version 1 of 1 — ${formatDateForBanner(mostRecentDate)}</div>
+              </div>
+            </div>
             <div id="automationDiffContent"></div>
           </div>
         `;
@@ -2726,12 +2744,21 @@ async function showScriptHistory(scriptId) {
 
       // If no versions with changes were found, show current content as a no-change diff
       if (currentScriptHistory.length === 0) {
+        // Use the date from the most recent commit in the full history
+        const mostRecentDate = data.history.length > 0 ? data.history[0].date : new Date().toISOString();
+
         document.getElementById('rightPanelTitle').textContent = script ? script.name : 'Script';
+        document.getElementById('itemsSubtitle').textContent = '';
         document.getElementById('rightPanelActions').innerHTML = '';
 
-        // Create a diff view container and render current content
+        // Create a diff view container with header matching the change view
         document.getElementById('rightPanel').innerHTML = `
           <div class="file-history-viewer">
+            <div class="file-history-header">
+              <div class="file-history-info">
+                <div class="history-position">Version 1 of 1 — ${formatDateForBanner(mostRecentDate)}</div>
+              </div>
+            </div>
             <div id="scriptDiffContent"></div>
           </div>
         `;
