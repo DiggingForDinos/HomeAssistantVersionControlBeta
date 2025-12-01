@@ -2242,40 +2242,28 @@ async function showFileHistory(filePath) {
           const commitData = await commitResponse.json();
           const commitContent = commitData.success ? commitData.content : '';
 
-          // In shifted mode, include ALL versions since we compare between consecutive versions
-          // In standard mode, filter out versions identical to current
-          if (diffMode === 'shifted') {
-            // In shifted mode, we compare current commit vs previous commit
-            // If there is no previous commit (oldest version), we exclude it from the list
-            // so the user can't navigate to a version with nothing to compare against
-            if (i < data.log.all.length - 1) {
-              commit.previousHash = data.log.all[i + 1].hash;
-              commit.content = commitContent;
-              versionsWithChanges.push(commit);
-            }
-          } else {
-            // Check if there are actual visible differences from the CURRENT version
-            const diffVsCurrent = generateDiff(commitContent, currentContent, {
+          // Files tab always uses standard mode - compare against current version
+          // Check if there are actual visible differences from the CURRENT version
+          const diffVsCurrent = generateDiff(commitContent, currentContent, {
+            returnNullIfNoChanges: true,
+            filePath: filePath
+          });
+
+          // Skip if identical to live
+          if (diffVsCurrent === null) continue;
+
+          // Check against the last kept version to avoid consecutive duplicates
+          if (lastKeptContent !== null) {
+            const diffVsLast = generateDiff(commitContent, lastKeptContent, {
               returnNullIfNoChanges: true,
               filePath: filePath
             });
-
-            // Skip if identical to live
-            if (diffVsCurrent === null) continue;
-
-            // Check against the last kept version to avoid consecutive duplicates
-            if (lastKeptContent !== null) {
-              const diffVsLast = generateDiff(commitContent, lastKeptContent, {
-                returnNullIfNoChanges: true,
-                filePath: filePath
-              });
-              if (diffVsLast === null) continue; // Skip if identical to the previously added history item
-            }
-
-            commit.content = commitContent;
-            versionsWithChanges.push(commit);
-            lastKeptContent = commitContent;
+            if (diffVsLast === null) continue; // Skip if identical to the previously added history item
           }
+
+          commit.content = commitContent;
+          versionsWithChanges.push(commit);
+          lastKeptContent = commitContent;
         } catch (error) {
           console.error(`Error checking commit ${commit.hash}:`, error);
           // Include it if we can't check (fallback)
@@ -2378,43 +2366,30 @@ async function showAutomationHistory(automationId) {
         const commit = data.history[i];
         const commitContent = dumpYaml(commit.automation);
 
-        // In shifted mode, include ALL versions since we compare between consecutive versions
-        // In standard mode, filter out versions identical to current
-        if (diffMode === 'shifted') {
-          // In shifted mode, exclude the oldest version
-          if (i < data.history.length - 1) {
-            const previousCommit = data.history[i + 1];
-            versionsWithChanges.push({
-              ...commit,
-              previousContent: dumpYaml(previousCommit.automation),
-              yamlContent: commitContent
-            });
-          }
-        } else {
-          // Check if there are visible differences compared to the CURRENT version
-          const diffVsCurrent = generateDiff(commitContent, currentContent, {
+        // Automations tab always uses standard mode - compare against current version
+        // Check if there are visible differences compared to the CURRENT version
+        const diffVsCurrent = generateDiff(commitContent, currentContent, {
+          returnNullIfNoChanges: true,
+          filePath: auto.file
+        });
+
+        // Skip if identical to live
+        if (diffVsCurrent === null) continue;
+
+        // Check against the last kept version to avoid consecutive duplicates
+        if (lastKeptContent !== null) {
+          const diffVsLast = generateDiff(commitContent, lastKeptContent, {
             returnNullIfNoChanges: true,
             filePath: auto.file
           });
-
-          // Skip if identical to live
-          if (diffVsCurrent === null) continue;
-
-          // Check against the last kept version to avoid consecutive duplicates
-          if (lastKeptContent !== null) {
-            const diffVsLast = generateDiff(commitContent, lastKeptContent, {
-              returnNullIfNoChanges: true,
-              filePath: auto.file
-            });
-            if (diffVsLast === null) continue; // Skip if identical to the previously added history item
-          }
-
-          versionsWithChanges.push({
-            ...commit,
-            yamlContent: commitContent
-          });
-          lastKeptContent = commitContent;
+          if (diffVsLast === null) continue; // Skip if identical to the previously added history item
         }
+
+        versionsWithChanges.push({
+          ...commit,
+          yamlContent: commitContent
+        });
+        lastKeptContent = commitContent;
       }
 
       if (versionsWithChanges.length > 0) {
@@ -2528,13 +2503,8 @@ async function loadAutomationHistoryDiff() {
   const currentContent = dumpYaml(auto.content);
   let compareToContent = '';
 
-  if (diffMode === 'shifted') {
-    // Shifted mode: compare current to NEXT older version (stored in previousContent)
-    compareToContent = currentCommit.previousContent || '';
-  } else {
-    // Standard mode: compare current to the version being viewed
-    compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
-  }
+  // Automations tab always uses standard mode - compare current to the version being viewed
+  compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
 
   const startLine = (auto && auto.line) ? (auto.line - 1) : 0;
 
@@ -2620,43 +2590,30 @@ async function showScriptHistory(scriptId) {
         const commit = data.history[i];
         const commitContent = dumpYaml(commit.script);
 
-        // In shifted mode, include ALL versions since we compare between consecutive versions
-        // In standard mode, filter out versions identical to current
-        if (diffMode === 'shifted') {
-          // In shifted mode, exclude the oldest version
-          if (i < data.history.length - 1) {
-            const previousCommit = data.history[i + 1];
-            versionsWithChanges.push({
-              ...commit,
-              previousContent: dumpYaml(previousCommit.script),
-              yamlContent: commitContent
-            });
-          }
-        } else {
-          // Check if there are visible differences compared to the CURRENT version
-          const diffVsCurrent = generateDiff(commitContent, currentContent, {
+        // Scripts tab always uses standard mode - compare against current version
+        // Check if there are visible differences compared to the CURRENT version
+        const diffVsCurrent = generateDiff(commitContent, currentContent, {
+          returnNullIfNoChanges: true,
+          filePath: script.file
+        });
+
+        // Skip if identical to live
+        if (diffVsCurrent === null) continue;
+
+        // Check against the last kept version to avoid consecutive duplicates
+        if (lastKeptContent !== null) {
+          const diffVsLast = generateDiff(commitContent, lastKeptContent, {
             returnNullIfNoChanges: true,
             filePath: script.file
           });
-
-          // Skip if identical to live
-          if (diffVsCurrent === null) continue;
-
-          // Check against the last kept version to avoid consecutive duplicates
-          if (lastKeptContent !== null) {
-            const diffVsLast = generateDiff(commitContent, lastKeptContent, {
-              returnNullIfNoChanges: true,
-              filePath: script.file
-            });
-            if (diffVsLast === null) continue; // Skip if identical to the previously added history item
-          }
-
-          versionsWithChanges.push({
-            ...commit,
-            yamlContent: commitContent
-          });
-          lastKeptContent = commitContent;
+          if (diffVsLast === null) continue; // Skip if identical to the previously added history item
         }
+
+        versionsWithChanges.push({
+          ...commit,
+          yamlContent: commitContent
+        });
+        lastKeptContent = commitContent;
       }
 
       if (versionsWithChanges.length > 0) {
@@ -2770,13 +2727,8 @@ async function loadScriptHistoryDiff() {
   const currentContent = dumpYaml(script.content);
   let compareToContent = '';
 
-  if (diffMode === 'shifted') {
-    // Shifted mode: compare current to NEXT older version (stored in previousContent)
-    compareToContent = currentCommit.previousContent || '';
-  } else {
-    // Standard mode: compare current to the version being viewed
-    compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
-  }
+  // Scripts tab always uses standard mode - compare current to the version being viewed
+  compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
 
   const startLine = (script && script.line) ? (script.line - 1) : 0;
 
@@ -3028,19 +2980,10 @@ async function loadFileHistoryDiff(filePath) {
 
   let compareToContent = '';
 
-  if (diffMode === 'shifted') {
-    // Shifted mode: compare current to NEXT older version (stored in previousHash)
-    if (currentCommit.previousHash) {
-      const olderResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.previousHash}`);
-      const olderData = await olderResponse.json();
-      compareToContent = olderData.success ? olderData.content : '';
-    }
-  } else {
-    // Standard mode: compare current to the version being viewed
-    const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}`);
-    const commitData = await commitResponse.json();
-    compareToContent = commitData.success ? commitData.content : '';
-  }
+  // Files tab always uses standard mode - compare current to the version being viewed
+  const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}`);
+  const commitData = await commitResponse.json();
+  compareToContent = commitData.success ? commitData.content : '';
 
   // Always: current on left, compareToContent on right
   const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('fileDiffContent'), {
