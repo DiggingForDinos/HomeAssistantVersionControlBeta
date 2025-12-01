@@ -2285,10 +2285,24 @@ async function showFileHistory(filePath) {
         updateFileHistoryNavigation(filePath);
       }
 
-      // If no versions with changes were found
+      // If no versions with changes were found, show current content as a no-change diff
       if (currentFileHistory.length === 0) {
-        document.getElementById('rightPanel').innerHTML = `<div class="empty">${t('history.no_changes')}</div>`;
+        document.getElementById('rightPanelTitle').textContent = filePath.split('/').pop();
         document.getElementById('rightPanelActions').innerHTML = '';
+
+        // Create a diff view container and render current content
+        document.getElementById('rightPanel').innerHTML = `
+          <div class="file-history-viewer">
+            <div id="fileDiffContent"></div>
+          </div>
+        `;
+
+        // Render the current content as a no-change diff
+        renderDiff(currentContent, currentContent, document.getElementById('fileDiffContent'), {
+          leftLabel: 'Current Version',
+          rightLabel: 'Current Version',
+          filePath: filePath
+        });
       }
 
     } else {
@@ -2441,11 +2455,24 @@ async function showAutomationHistory(automationId) {
         updateAutomationHistoryNavigation();
       }
 
-      // If no versions with changes were found
+      // If no versions with changes were found, show current content as a no-change diff
       if (currentAutomationHistory.length === 0) {
         document.getElementById('rightPanelTitle').textContent = auto ? auto.name : 'Automation';
         document.getElementById('rightPanelActions').innerHTML = '';
-        document.getElementById('rightPanel').innerHTML = `<div class="empty">${t('history.no_changes')}</div>`;
+
+        // Create a diff view container and render current content
+        document.getElementById('rightPanel').innerHTML = `
+          <div class="file-history-viewer">
+            <div id="automationDiffContent"></div>
+          </div>
+        `;
+
+        // Render the current content as a no-change diff
+        renderDiff(currentContent, currentContent, document.getElementById('automationDiffContent'), {
+          leftLabel: 'Current Version',
+          rightLabel: 'Current Version',
+          filePath: auto.file
+        });
       }
     } else {
       let debugHtml = '';
@@ -2697,11 +2724,24 @@ async function showScriptHistory(scriptId) {
         updateScriptHistoryNavigation();
       }
 
-      // If no versions with changes were found
+      // If no versions with changes were found, show current content as a no-change diff
       if (currentScriptHistory.length === 0) {
         document.getElementById('rightPanelTitle').textContent = script ? script.name : 'Script';
         document.getElementById('rightPanelActions').innerHTML = '';
-        document.getElementById('rightPanel').innerHTML = `<div class="empty">${t('history.no_changes')}</div>`;
+
+        // Create a diff view container and render current content
+        document.getElementById('rightPanel').innerHTML = `
+          <div class="file-history-viewer">
+            <div id="scriptDiffContent"></div>
+          </div>
+        `;
+
+        // Render the current content as a no-change diff
+        renderDiff(currentContent, currentContent, document.getElementById('scriptDiffContent'), {
+          leftLabel: 'Current Version',
+          rightLabel: 'Current Version',
+          filePath: script.file
+        });
       }
     } else {
       let debugHtml = '';
