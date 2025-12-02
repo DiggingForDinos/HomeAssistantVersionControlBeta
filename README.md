@@ -2,7 +2,7 @@
 
 **Automatic backup, history tracking, and instant restore for your Home Assistant configuration.**
 
-Home Assistant Version Control acts as a "time machine" for your setup. It automatically tracks every change to your YAML configuration files using a robust local Git backend. Browse your history, visualize diffs, and restore individual files or your entire configuration to any previous state with a single click.
+Home Assistant Version Control provides complete version history for your setup. It automatically tracks every change to your YAML configuration files using a robust local Git backend. Browse your history, visualize diffs, and restore individual files or your entire configuration to any previous state with a single click.
 
 > [!IMPORTANT]
 > 1.  **Existing Git Repos:** If you already have a `.git` folder in your `/config` directory, **back it up and possibly delete it** before starting this add-on. This add-on manages its own internal Git repository and may conflict with existing ones.
@@ -26,7 +26,7 @@ Home Assistant Version Control acts as a "time machine" for your setup. It autom
 ###  Instant Restore
 * **Granular Control:** Restore specific files or revert your entire configuration.
 * **Smart Reloads:** Automatically reloads Home Assistant when restoring automation or script files to apply changes immediately.
-* **"Time Travel":** Long-press the restore button to revert the entire system to a previous point in time.
+* **Instant Rollback:** Long-press the restore button to revert the entire system to a previous point in time.
 
 ###  Customization
 * **Accent Colors:** Choose from seven preset color palettes.
