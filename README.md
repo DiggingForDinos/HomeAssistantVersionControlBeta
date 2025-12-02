@@ -97,7 +97,7 @@ docker run -d \
   -v /path/to/your/config:/config \
   -e TZ=America/New_York \
   --name home-assistant-version-control \
-  ghcr.io/saihgupr/homeassistantversioncontrolbeta:latest
+  ghcr.io/saihgupr/ha-version-control:latest
 ```
 
 Replace `/path/to/your/config` with the actual path to your Home Assistant configuration directory.

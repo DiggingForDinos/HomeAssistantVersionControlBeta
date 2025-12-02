@@ -1,8 +1,8 @@
 services:
   ha-version-control:
     # Note: Ensure a Docker image has been published via GitHub Actions first
-    # Or build locally with: docker build -t ghcr.io/saihgupr/homeassistantversioncontrolbeta:latest ./homeassistant-version-control
-    image: ghcr.io/saihgupr/homeassistantversioncontrolbeta:latest
+    # Or build locally with: docker build -t ghcr.io/saihgupr/ha-version-control:latest ./homeassistant-version-control
+    image: ghcr.io/saihgupr/ha-version-control:latest
     container_name: ha-version-control
     ports:
       - "54001:54001"
