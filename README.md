@@ -5,9 +5,8 @@
 Home Assistant Version Control provides complete version history for your setup. It automatically tracks every change to your YAML configuration files using a robust local Git backend. Browse your history, visualize diffs, and restore individual files or your entire configuration to any previous state with a single click.
 
 > [!IMPORTANT]
-
-> 1.  **Existing Git Repos:** If you already have a `.git` folder in your `/config` directory, **back it up and possibly delete it** before starting this add-on. This add-on manages its own internal Git repository and may conflict with existing ones.
-> 2.  **Backup Strategy:** While this add-on provides excellent version control, **do not rely on it as your sole backup method**. Always maintain external backups (e.g., Google Drive, Samba) of your Home Assistant instance.
+> 1. **Existing Git Repos:** If you already have a `.git` folder in your `/config` directory, **back it up and possibly delete it** before starting this add-on. This add-on manages its own internal Git repository and may conflict with existing ones.
+> 2. **Backup Strategy:** While this add-on provides excellent version control, **do not rely on it as your sole backup method**. Always maintain external backups (e.g., Google Drive, Samba) of your Home Assistant instance.
 
 ---
 
