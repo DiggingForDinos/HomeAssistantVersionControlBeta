@@ -1834,13 +1834,22 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
         const commitData = await commitResponse.json();
         let commitContent = commitData.success ? commitData.content : '';
 
+        // Also get current content for label comparison
+        const currentResponse = await fetch(`${API}/file-content?filePath=${encodeURIComponent(file.file)}`);
+        const currentData = await currentResponse.json();
+        let currentContent = currentData.success ? currentData.content : '';
+
         // Remove filename if present
-        if (commitContent.startsWith(file.file)) {
+        const fileName = file.file;
+        if (commitContent.startsWith(fileName)) {
           commitContent = commitContent.substring(commitContent.indexOf('\n') + 1);
+        }
+        if (currentContent.startsWith(fileName)) {
+          currentContent = currentContent.substring(currentContent.indexOf('\n') + 1);
         }
 
         const commitLines = commitContent.split(/\r\n?|\n/);
-        filesWithoutChanges.push({ file, commitLines });
+        filesWithoutChanges.push({ file, commitLines, commitContent, currentContent });
         continue;
       }
 
@@ -1892,20 +1901,12 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
       let leftContent = currentContent;
       let leftLabel = 'Current Version';
 
-      // Determine if we're showing historical content on the left side
-      // In standard mode, left is always current unless it's an Added file in shifted mode
       // In shifted mode with Added files, we show the commit version on both sides
       if (diffMode === 'shifted' && file.status === 'A') {
         leftContent = commitContent;
         leftLabel = `Version ${hash.substring(0, 8)}`;
-      } else if (diffMode === 'standard') {
-        // In standard mode, check if current content matches the commit content
-        // If they're the same, we're viewing a historical state, not the latest
-        if (currentContent === commitContent && hash !== allCommits[0]?.hash) {
-          // We're viewing an old commit where content hasn't changed since
-          leftLabel = `Version ${hash.substring(0, 8)}`;
-        }
       }
+      // Otherwise, left is always "Current Version" (because it IS the current live version)
 
       const currentLines = leftContent.split(/\r\n?|\n/);
       const commitLines = commitContent.split(/\r\n?|\n/);
@@ -1924,7 +1925,8 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
         filesWithChanges.push({ file, diffHtml });
       } else {
         // No diff, but we'll show the full file content
-        filesWithoutChanges.push({ file, commitLines });
+        // Store both commit content and current content for label comparison
+        filesWithoutChanges.push({ file, commitLines, commitContent, currentContent });
       }
     } catch (error) {
       console.error(`Error comparing file ${file.file}:`, error);
@@ -1966,6 +1968,9 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
   // Process files without changes (render them with dropdowns too if needed)
   for (const item of filesWithoutChanges) {
     const fullFileHtml = generateFullFileHTML(item.commitLines);
+    // Determine label: if commit content matches current, it's still current
+    const label = (item.commitContent === item.currentContent) ? 'Current Version' : `Version ${hash.substring(0, 8)}`;
+
     if (needsDropdown) {
       const expandedClass = shouldCollapse ? '' : 'expanded';
       const displayStyle = shouldCollapse ? 'display: none' : 'display: block';
@@ -1979,7 +1984,7 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
             <div class="diff-view-container">
               <div class="segmented-control" style="cursor: default; grid-template-columns: 1fr;">
                 <div class="segmented-control-slider" style="width: calc(100% - 8px);"></div>
-                <label style="cursor: default; color: var(--text-primary);">Version ${hash.substring(0, 8)}</label>
+                <label style="cursor: default; color: var(--text-primary);">${label}</label>
               </div>
               <div class="diff-viewer-shell ${currentDiffStyle}">
                 <div class="diff-viewer-unified">
@@ -1995,7 +2000,7 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
         <div class="diff-view-container">
           <div class="segmented-control" style="cursor: default; grid-template-columns: 1fr;">
             <div class="segmented-control-slider" style="width: calc(100% - 8px);"></div>
-            <label style="cursor: default; color: var(--text-primary);">Version ${hash.substring(0, 8)}</label>
+            <label style="cursor: default; color: var(--text-primary);">${label}</label>
           </div>
           <div class="diff-viewer-shell ${currentDiffStyle}">
             <div class="diff-viewer-unified">
