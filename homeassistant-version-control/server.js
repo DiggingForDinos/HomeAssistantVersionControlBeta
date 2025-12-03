@@ -189,25 +189,57 @@ async function callHomeAssistantService(domain, service, serviceData = {}) {
       return { success: false, error: 'SUPERVISOR_TOKEN not available' };
     }
 
-    const url = `http://supervisor/core/api/services/${domain}/${service}`;
+    // Determine the API URL based on environment
+    // In Docker mode: use HA_URL (e.g., http://homeassistant.local:8123)
+    // In addon mode: use supervisor endpoint
+    const haUrl = process.env.HA_URL;
+    let url;
+
+    if (haUrl) {
+      // Docker mode - use provided HA_URL
+      const baseUrl = haUrl.replace(/\/$/, ''); // Remove trailing slash if present
+      url = `${baseUrl}/api/services/${domain}/${service}`;
+      console.log(`[HA API] Using Docker mode with HA_URL: ${haUrl}`);
+    } else {
+      // Addon mode - use supervisor endpoint
+      url = `http://supervisor/core/api/services/${domain}/${service}`;
+      console.log(`[HA API] Using addon mode with supervisor endpoint`);
+    }
+
     console.log(`[HA API] Calling service: ${domain}.${service}`);
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supervisorToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(serviceData)
-    });
+    // Add timeout to prevent long waits (5 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    if (response.ok) {
-      console.log(`[HA API] Service ${domain}.${service} called successfully`);
-      return { success: true };
-    } else {
-      const errorText = await response.text();
-      console.error(`[HA API] Service call failed: ${response.status} ${errorText}`);
-      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supervisorToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(serviceData),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        console.log(`[HA API] Service ${domain}.${service} called successfully`);
+        return { success: true };
+      } else {
+        const errorText = await response.text();
+        console.error(`[HA API] Service call failed: ${response.status} ${errorText}`);
+        return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error(`[HA API] Request timeout after 5 seconds`);
+        return { success: false, error: 'Request timeout - check HA_URL is correct and Home Assistant is reachable' };
+      }
+      throw fetchError;
     }
   } catch (error) {
     console.error(`[HA API] Error calling service ${domain}.${service}:`, error.message);

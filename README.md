@@ -97,6 +97,7 @@ docker run -d \
   -v /path/to/your/config:/config \
   -e TZ=America/New_York \
   -e SUPERVISOR_TOKEN=your_long_lived_access_token_here \
+  -e HA_URL=http://homeassistant.local:8123 \
   --name home-assistant-version-control \
   ghcr.io/saihgupr/ha-version-control:latest
 ```
@@ -104,7 +105,7 @@ docker run -d \
 Replace `/path/to/your/config` with the actual path to your Home Assistant configuration directory.
 
 > [!NOTE]
-> The `SUPERVISOR_TOKEN` is optional. You can omit that line if you don't need Home Assistant restart/reload features. See [Getting Your Supervisor Token](#getting-your-supervisor-token-optional) for details.
+> The `SUPERVISOR_TOKEN` and `HA_URL` are optional. You can omit those lines if you don't need Home Assistant restart/reload features. See [Configuration for Docker Mode](#configuration-for-docker-mode-optional) for details.
 
 **Option C: Build locally:**
 
@@ -118,20 +119,21 @@ docker run -d \
   -v /path/to/your/config:/config \
   -e TZ=America/New_York \
   -e SUPERVISOR_TOKEN=your_long_lived_access_token_here \
+  -e HA_URL=http://homeassistant.local:8123 \
   --name home-assistant-version-control \
   home-assistant-version-control
 ```
 
 > [!NOTE]
-> The `SUPERVISOR_TOKEN` is optional. You can omit that line if you don't need Home Assistant restart/reload features. See [Getting Your Supervisor Token](#getting-your-supervisor-token-optional) for details.
+> The `SUPERVISOR_TOKEN` and `HA_URL` are optional. You can omit those lines if you don't need Home Assistant restart/reload features. See [Configuration for Docker Mode](#configuration-for-docker-mode-optional) for details.
 
 Access the interface at `http://localhost:54001`.
 
-#### Getting Your Supervisor Token (Optional)
+#### Configuration for Docker Mode (Optional)
 
-The `SUPERVISOR_TOKEN` environment variable is **completely optional**. 
+When running as a standalone Docker container, two environment variables enable Home Assistant API features:
 
-**Without the token**, all version control features work normally:
+**Without these variables**, all version control features work normally:
 - ✅ Automatic backups and version tracking
 - ✅ Browse history and view diffs
 - ✅ Restore files and entire configurations
@@ -139,28 +141,44 @@ The `SUPERVISOR_TOKEN` environment variable is **completely optional**.
 - ❌ Automations won't auto-reload after restore (manual reload needed)
 - ❌ Scripts won't auto-reload after restore (manual reload needed)
 
-**With the token**, you additionally get:
+**With both variables configured**, you additionally get:
 - ✅ Restart Home Assistant from the UI
 - ✅ Auto-reload automations after restore
 - ✅ Auto-reload scripts after restore
 
-**To add the token (optional):**
+**Required Variables for Docker Mode:**
 
-1. In Home Assistant, go to **Settings** → **People** → click on your user profile
-2. Scroll down to **Long-Lived Access Tokens**
-3. Click **Create Token**
-4. Give it a name (e.g., "Version Control")
-5. Copy the token and add it to your Docker configuration:
-   
-   **For `docker run`**, add this line to your command:
-   ```bash
-   -e SUPERVISOR_TOKEN=your_token_here \
-   ```
-   
-   **For `docker compose`**, uncomment and update this line in `compose.yaml`:
-   ```yaml
-   - SUPERVISOR_TOKEN=your_long_lived_access_token_here
-   ```
+1. **`SUPERVISOR_TOKEN`** - A Home Assistant long-lived access token
+   - Go to **Settings** → **People** → click on your user profile
+   - Scroll down to **Long-Lived Access Tokens**
+   - Click **Create Token** and give it a name (e.g., "Version Control")
+   - Copy the token
+
+2. **`HA_URL`** - The URL to your Home Assistant instance
+   - Format: `http://homeassistant.local:8123` or `http://192.168.1.100:8123`
+   - Use the hostname or IP address that the Docker container can reach
+   - Include the port (usually 8123)
+
+**To add these variables:**
+
+**For `docker run`**, add these lines to your command:
+```bash
+-e SUPERVISOR_TOKEN=your_token_here \
+-e HA_URL=http://homeassistant.local:8123 \
+```
+
+**For `docker compose`**, update these lines in `compose.yaml`:
+```yaml
+- SUPERVISOR_TOKEN=your_long_lived_access_token_here
+- HA_URL=http://homeassistant.local:8123
+```
+
+> [!IMPORTANT]
+> After updating the `compose.yaml` file, restart the container with:
+> ```bash
+> docker compose down
+> docker compose up -d
+> ```
 
 ---
 
