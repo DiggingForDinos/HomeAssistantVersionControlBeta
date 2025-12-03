@@ -1371,7 +1371,8 @@ function initializeWatcher() {
         // Check if this is only a formatting change (for YAML files)
         // Removed: We want to track ALL changes, including comments and formatting
 
-
+        // Clear staging area to prevent accumulation of files from previous changes
+        await gitRaw(['reset']);
         console.log(`[watcher] Adding file: ${relativePath}`);
         await gitAdd(relativePath);
 
@@ -1383,10 +1384,37 @@ function initializeWatcher() {
           return;
         }
 
-        // Get all staged files for the commit message
-        const stagedFiles = status.files
-          .filter(f => f.index !== ' ' && f.index !== '?')
-          .map(f => f.path);
+        // Get all staged files and filter to only include allowed patterns
+        const allStagedFiles = status.files
+          .filter(f => f.index !== ' ' && f.index !== '?');
+
+        // Filter out any files that shouldn't be tracked
+        const stagedFiles = allStagedFiles
+          .filter(f => {
+            const filePath = f.path.trim(); // Trim to remove leading/trailing spaces from git status
+            const hasAllowedExt = getConfiguredExtensions().some(ext => filePath.endsWith(ext));
+            const isLovelaceFile = filePath.startsWith('.storage/lovelace');
+            const shouldInclude = hasAllowedExt || isLovelaceFile;
+
+            // Debug logging
+            if (!shouldInclude) {
+              console.log(`[watcher] Filtering out file: ${filePath} (hasAllowedExt: ${hasAllowedExt}, isLovelaceFile: ${isLovelaceFile})`);
+            }
+
+            return shouldInclude;
+          })
+          .map(f => f.path.trim()); // Also trim when extracting the path
+
+        // Debug: show what files passed the filter
+        console.log(`[watcher] Files after filtering: ${stagedFiles.join(', ')} (${stagedFiles.length} file(s))`);
+
+        // Safety check: if no valid files to commit, clean up and return
+        if (stagedFiles.length === 0) {
+          console.log(`[watcher] No valid files to commit after filtering`);
+          await gitRaw(['reset']);
+          debounceTimers.delete(filePath);
+          return;
+        }
 
         // Create commit message based on number of files
         let commitMessage;
@@ -1612,16 +1640,49 @@ async function cleanupHistoryOrphanMethod(options) {
     if (!status.isClean()) {
       console.log('[retention] Working directory is dirty. Attempting to auto-commit changes before cleanup...');
 
-      // Add all changes
-      await gitAdd('.');
+      // Add files matching configured patterns only (not all files)
+      const extensions = getConfiguredExtensions();
+      const patterns = extensions.map(ext => `**/*${ext}`);
+      patterns.push('.storage/lovelace*'); // Include lovelace files
+
+      for (const pattern of patterns) {
+        try {
+          await gitRaw(['add', pattern]);
+        } catch (err) {
+          // Pattern may not match any files, which is fine
+          console.log(`[retention] Pattern ${pattern} matched no files (expected)`);
+        }
+      }
 
       // Get the updated status with staged files
       const updatedStatus = await gitStatus();
 
-      // Get all staged files for commit message
-      const stagedFiles = updatedStatus.files
-        .filter(f => f.index !== ' ' && f.index !== '?')
-        .map(f => f.path);
+      // Get all staged files and filter to only include allowed patterns
+      const allStagedFiles = updatedStatus.files
+        .filter(f => f.index !== ' ' && f.index !== '?');
+
+      // Filter out any files that shouldn't be tracked
+      const stagedFiles = allStagedFiles
+        .filter(f => {
+          const filePath = f.path.trim(); // Trim to remove leading/trailing spaces from git status
+          const hasAllowedExt = getConfiguredExtensions().some(ext => filePath.endsWith(ext));
+          const isLovelaceFile = filePath.startsWith('.storage/lovelace');
+          return hasAllowedExt || isLovelaceFile;
+        })
+        .map(f => f.path.trim()); // Also trim when extracting the path
+
+      // If no valid files to commit, reset and continue
+      if (stagedFiles.length === 0) {
+        console.log('[retention] No valid files to commit after filtering, continuing with cleanup');
+        await gitRaw(['reset']);
+        cleanupLock = false;
+        return {
+          success: true,
+          message: 'No changes to commit (all files filtered out)',
+          commitsMerged: 0,
+          commitsKept: 0
+        };
+      }
 
       // Create commit message based on number of files (same logic as file watcher)
       let commitMessage;
