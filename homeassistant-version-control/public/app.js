@@ -1968,7 +1968,8 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
 
   // Process files without changes (render them with dropdowns too if needed)
   for (const item of filesWithoutChanges) {
-    const fullFileHtml = generateFullFileHTML(item.commitLines);
+    const trimmedLines = trimEmptyLines(item.commitLines);
+    const fullFileHtml = generateFullFileHTML(trimmedLines);
     // Determine label: if commit content matches current, it's still current
     const label = (item.commitContent === item.currentContent) ? 'Current Version' : `Version ${hash.substring(0, 8)}`;
 
@@ -3025,8 +3026,9 @@ function renderUnchangedView(content, options = {}) {
     label = 'Current Version'
   } = options;
 
-  // Split content into lines
-  const lines = content.split(/\r\n?|\n/);
+  // Split content into lines and trim empty ones from start/end
+  let lines = content.split(/\r\n?|\n/);
+  lines = trimEmptyLines(lines);
 
   // Use generateFullFileHTML to match timeline's unchanged file display
   let contentHtml = '';
@@ -3206,6 +3208,18 @@ function formatDateForBanner(dateString) {
     hour12: true
   });
   return `${datePart} ${timePart}`;
+}
+
+function trimEmptyLines(lines) {
+  // Remove empty lines from the start
+  while (lines.length > 0 && lines[0].trim() === '') {
+    lines.shift();
+  }
+  // Remove empty lines from the end
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+  return lines;
 }
 
 
@@ -3576,7 +3590,8 @@ function generateDiff(oldText, newText, options = {}) {
     if (returnNullIfNoChanges) return null;
 
     // Show the content as "Current Version" instead of empty state
-    const lines = safeOldText.split(/\r\n?|\n/);
+    let lines = safeOldText.split(/\r\n?|\n/);
+    lines = trimEmptyLines(lines);
     const lineCount = lines.length;
 
     let contentHtml = '';
