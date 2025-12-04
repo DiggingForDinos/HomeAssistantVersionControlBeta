@@ -44,7 +44,7 @@
     "single_file_restored_reloaded": "{file} restored and reloaded successfully!",
     "multiple_files_restored": "{count} files restored!",
     "multiple_files_restored_reloaded": "{count} files restored and reloaded successfully!",
-    "reset_all_files": "RESET ALL FILES"
+    "reset_all_files": "Reset All Files"
   },
   "file_status": {
     "added": "Added",
