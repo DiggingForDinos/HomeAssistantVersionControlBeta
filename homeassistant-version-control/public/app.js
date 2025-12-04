@@ -2353,6 +2353,7 @@ async function showFileHistory(filePath) {
       if (currentFileHistory.length === 0) {
         // Use the hash from the most recent commit in the full history
         const mostRecentHash = data.log.all.length > 0 ? data.log.all[0].hash : '';
+        const mostRecentCommitDate = data.log.all.length > 0 ? data.log.all[0].date : new Date();
 
         document.getElementById('rightPanelTitle').textContent = filePath.split('/').pop();
         document.getElementById('itemsSubtitle').textContent = '';
@@ -2363,7 +2364,7 @@ async function showFileHistory(filePath) {
           <div class="file-history-viewer">
             <div class="file-history-header">
               <div class="file-history-info">
-                <div class="history-position">Version 1 of 1 — Version ${mostRecentHash.substring(0, 8)}</div>
+                <div class="history-position">1 of 1 — ${formatDateForBanner(mostRecentCommitDate)} (${mostRecentHash.substring(0, 8)})</div>
               </div>
               <div class="file-history-actions">
                 <button class="btn" disabled style="border: 1px solid var(--border-subtle); min-width: 36px; padding: 8px 12px;">◀</button>
@@ -2400,9 +2401,9 @@ function updateFileHistoryNavigation(filePath) {
   if (historyPosition && prevBtn && nextBtn) {
     const currentCommit = currentFileHistory[currentFileHistoryIndex];
     if (isScanningHistory) {
-      historyPosition.textContent = `Version ${currentFileHistoryIndex + 1} — Version ${currentCommit.hash.substring(0, 8)}`;
+      historyPosition.textContent = `${currentFileHistoryIndex + 1} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
     } else {
-      historyPosition.textContent = `Version ${currentFileHistoryIndex + 1} of ${currentFileHistory.length} — Version ${currentCommit.hash.substring(0, 8)}`;
+      historyPosition.textContent = `${currentFileHistoryIndex + 1} of ${currentFileHistory.length} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
     }
 
     // Update button states
@@ -2536,6 +2537,7 @@ async function showAutomationHistory(automationId) {
       if (currentAutomationHistory.length === 0) {
         // Use the hash from the most recent commit in the full history
         const mostRecentHash = data.history.length > 0 ? data.history[0].hash : '';
+        const mostRecentCommitDate = data.history.length > 0 ? data.history[0].date : new Date();
 
         document.getElementById('rightPanelTitle').textContent = auto ? auto.name : 'Automation';
         document.getElementById('itemsSubtitle').textContent = '';
@@ -2546,7 +2548,7 @@ async function showAutomationHistory(automationId) {
           <div class="file-history-viewer">
             <div class="file-history-header">
               <div class="file-history-info">
-                <div class="history-position">Version 1 of 1 — Version ${mostRecentHash.substring(0, 8)}</div>
+                <div class="history-position">1 of 1 — ${formatDateForBanner(mostRecentCommitDate)} (${mostRecentHash.substring(0, 8)})</div>
               </div>
               <div class="file-history-actions">
                 <button class="btn" disabled style="border: 1px solid var(--border-subtle); min-width: 36px; padding: 8px 12px;">◀</button>
@@ -2617,7 +2619,7 @@ function displayAutomationHistory() {
         <div class="file-history-viewer">
           <div class="file-history-header">
             <div class="file-history-info">
-              <div class="history-position" id="automationHistoryPosition">Version 1 of ${currentAutomationHistory.length}</div>
+              <div class="history-position" id="automationHistoryPosition">1 of ${currentAutomationHistory.length}</div>
             </div>
             <div class="file-history-actions">
               <button class="btn" id="autoPrevBtn" onclick="navigateAutomationHistory(-1)" ${currentAutomationHistoryIndex === 0 ? 'disabled' : ''} style="border: 1px solid var(--border-subtle); min-width: 36px; padding: 8px 12px;">◀</button>
@@ -2644,10 +2646,10 @@ async function loadAutomationHistoryDiff() {
   // Update position indicator
   if (isScanningHistory) {
     document.getElementById('automationHistoryPosition').textContent =
-      `Version ${currentAutomationHistoryIndex + 1} — Version ${currentCommit.hash.substring(0, 8)}`;
+      `${currentAutomationHistoryIndex + 1} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
   } else {
     document.getElementById('automationHistoryPosition').textContent =
-      `Version ${currentAutomationHistoryIndex + 1} of ${currentAutomationHistory.length} — Version ${currentCommit.hash.substring(0, 8)}`;
+      `${currentAutomationHistoryIndex + 1} of ${currentAutomationHistory.length} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
   }
 
   // Update button states
@@ -2690,9 +2692,9 @@ function updateAutomationHistoryNavigation() {
   if (historyPosition && prevBtn && nextBtn) {
     const currentCommit = currentAutomationHistory[currentAutomationHistoryIndex];
     if (isScanningHistory) {
-      historyPosition.textContent = `Version ${currentAutomationHistoryIndex + 1} — Version ${currentCommit.hash.substring(0, 8)}`;
+      historyPosition.textContent = `${currentAutomationHistoryIndex + 1} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
     } else {
-      historyPosition.textContent = `Version ${currentAutomationHistoryIndex + 1} of ${currentAutomationHistory.length} — Version ${currentCommit.hash.substring(0, 8)}`;
+      historyPosition.textContent = `${currentAutomationHistoryIndex + 1} of ${currentAutomationHistory.length} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
     }
 
     // Update button states
@@ -2818,6 +2820,7 @@ async function showScriptHistory(scriptId) {
       if (currentScriptHistory.length === 0) {
         // Use the hash from the most recent commit in the full history
         const mostRecentHash = data.history.length > 0 ? data.history[0].hash : '';
+        const mostRecentCommitDate = data.history.length > 0 ? data.history[0].date : new Date();
 
         document.getElementById('rightPanelTitle').textContent = script ? script.name : 'Script';
         document.getElementById('itemsSubtitle').textContent = '';
@@ -2828,7 +2831,7 @@ async function showScriptHistory(scriptId) {
           <div class="file-history-viewer">
             <div class="file-history-header">
               <div class="file-history-info">
-                <div class="history-position">Version 1 of 1 — Version ${mostRecentHash.substring(0, 8)}</div>
+                <div class="history-position">1 of 1 — ${formatDateForBanner(mostRecentCommitDate)} (${mostRecentHash.substring(0, 8)})</div>
               </div>
               <div class="file-history-actions">
                 <button class="btn" disabled style="border: 1px solid var(--border-subtle); min-width: 36px; padding: 8px 12px;">◀</button>
@@ -2899,7 +2902,7 @@ function displayScriptHistory() {
         <div class="file-history-viewer">
           <div class="file-history-header">
             <div class="file-history-info">
-              <div class="history-position" id="scriptHistoryPosition">Version 1 of ${currentScriptHistory.length}</div>
+              <div class="history-position" id="scriptHistoryPosition">1 of ${currentScriptHistory.length}</div>
             </div>
             <div class="file-history-actions">
               <button class="btn" id="scriptPrevBtn" onclick="navigateScriptHistory(-1)" ${currentScriptHistoryIndex === 0 ? 'disabled' : ''} style="border: 1px solid var(--border-subtle); min-width: 36px; padding: 8px 12px;">◀</button>
@@ -2926,10 +2929,10 @@ async function loadScriptHistoryDiff() {
   // Update position indicator
   if (isScanningHistory) {
     document.getElementById('scriptHistoryPosition').textContent =
-      `Version ${currentScriptHistoryIndex + 1} — Version ${currentCommit.hash.substring(0, 8)}`;
+      `${currentScriptHistoryIndex + 1} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
   } else {
     document.getElementById('scriptHistoryPosition').textContent =
-      `Version ${currentScriptHistoryIndex + 1} of ${currentScriptHistory.length} — Version ${currentCommit.hash.substring(0, 8)}`;
+      `${currentScriptHistoryIndex + 1} of ${currentScriptHistory.length} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
   }
 
   // Update button states
@@ -2975,9 +2978,9 @@ function updateScriptHistoryNavigation() {
   if (historyPosition && prevBtn && nextBtn) {
     const currentCommit = currentScriptHistory[currentScriptHistoryIndex];
     if (isScanningHistory) {
-      historyPosition.textContent = `Version ${currentScriptHistoryIndex + 1} — Version ${currentCommit.hash.substring(0, 8)}`;
+      historyPosition.textContent = `${currentScriptHistoryIndex + 1} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
     } else {
-      historyPosition.textContent = `Version ${currentScriptHistoryIndex + 1} of ${currentScriptHistory.length} — Version ${currentCommit.hash.substring(0, 8)}`;
+      historyPosition.textContent = `${currentScriptHistoryIndex + 1} of ${currentScriptHistory.length} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
     }
 
     // Update button states
@@ -3049,7 +3052,7 @@ function renderUnchangedView(content, options = {}) {
     <div class="file-history-viewer">
       <div class="file-history-header">
         <div class="file-history-info">
-          <div class="history-position">Version 1 of 1 — ${formattedDate}${hashDisplay}</div>
+          <div class="history-position">1 of 1 — ${formatDateForBanner(commitDate || new Date())} (${commitHash ? commitHash.substring(0, 8) : ''})</div>
         </div>
       </div>
       <div class="diff-view-container">
@@ -3170,7 +3173,7 @@ function displayFileHistory(filePath) {
         <div class="file-history-viewer">
           <div class="file-history-header">
             <div class="file-history-info">
-              <div class="history-position" id="historyPosition">Version 1 of ${currentFileHistory.length}</div>
+              <div class="history-position" id="historyPosition">1 of ${currentFileHistory.length}</div>
             </div>
                                           <div class="file-history-actions">
                                             <button class="btn" id="prevBtn" onclick="navigateFileHistory(-1)" ${currentFileHistoryIndex === 0 ? 'disabled' : ''} style="border: 1px solid var(--border-subtle); min-width: 36px; padding: 8px 12px;">◀</button>
@@ -3205,6 +3208,8 @@ function formatDateForBanner(dateString) {
   return `${datePart} ${timePart}`;
 }
 
+
+
 async function loadFileHistoryDiff(filePath) {
   const currentCommit = currentFileHistory[currentFileHistoryIndex];
 
@@ -3212,10 +3217,10 @@ async function loadFileHistoryDiff(filePath) {
   // Update position indicator
   if (isScanningHistory) {
     document.getElementById('historyPosition').textContent =
-      `Version ${currentFileHistoryIndex + 1} — Version ${currentCommit.hash.substring(0, 8)}`;
+      `${currentFileHistoryIndex + 1} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
   } else {
     document.getElementById('historyPosition').textContent =
-      `Version ${currentFileHistoryIndex + 1} of ${currentFileHistory.length} — Version ${currentCommit.hash.substring(0, 8)}`;
+      `${currentFileHistoryIndex + 1} of ${currentFileHistory.length} — ${formatDateForBanner(currentCommit.date)} (${currentCommit.hash.substring(0, 8)})`;
   }
 
   // Update button states
