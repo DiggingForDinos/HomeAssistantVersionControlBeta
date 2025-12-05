@@ -353,6 +353,24 @@
                 </div>
               </label>
             </div>
+
+            <div class="setting-item" style="margin-bottom: 20px;">
+              <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="color: var(--text-primary); font-size: 14px;"
+                    data-i18n="settings.compare_to_current">Compare to Current</span>
+                  <span style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;"
+                    data-i18n="settings.compare_to_current_desc">
+                    Compare version against current file instead of parent commit
+                  </span>
+                </div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="compareToCurrent" style="display: none;" checked
+                    onchange="toggleCompareToCurrent(this.checked)">
+                  <label for="compareToCurrent" class="toggle-slider"></label>
+                </div>
+              </label>
+            </div>
           </div>
 
           <!-- Group 3: Appearance -->

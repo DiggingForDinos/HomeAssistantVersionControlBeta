@@ -165,6 +165,8 @@
     "diff_style": "Style",
     "diff_change_mode": "Comparison Change Mode",
     "diff_change_mode_desc": "Show what changed in each version",
+    "compare_to_current": "Compare to Current",
+    "compare_to_current_desc": "Compare version against current file instead of parent commit",
     "diff_style_high_contrast": "High Contrast",
     "diff_style_github": "GitHub Classic",
     "diff_style_gradient": "Modern Gradient",

@@ -61,6 +61,9 @@ let diffViewFormat = localStorage.getItem('diffViewFormat') || 'split';
 // Diff mode management - 'shifted' shows what each version changed, 'standard' is normal
 let diffMode = localStorage.getItem('diffMode') || 'shifted';
 
+// Compare to Current mode - true = compare to current file, false = compare to parent commit (GitHub-style)
+let compareToCurrent = localStorage.getItem('compareToCurrent') !== 'false'; // Default: true (ON)
+
 // Localization
 let translations = {};
 let currentLanguage = 'en';
@@ -266,6 +269,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   const diffModeShifted = document.getElementById('diffModeShifted');
   if (diffModeShifted) {
     diffModeShifted.checked = (diffMode === 'shifted');
+  }
+
+  // Load compare to current setting (checkbox toggle)
+  const compareToCurrentCheckbox = document.getElementById('compareToCurrent');
+  if (compareToCurrentCheckbox) {
+    compareToCurrentCheckbox.checked = compareToCurrent;
   }
 
   // Load diff style setting
@@ -908,6 +917,14 @@ function toggleDiffMode(isChecked) {
   localStorage.setItem('diffMode', mode);
 
   // Refresh the current view to apply new diff mode
+  refreshCurrentView();
+}
+
+function toggleCompareToCurrent(isChecked) {
+  compareToCurrent = isChecked;
+  localStorage.setItem('compareToCurrent', isChecked);
+
+  // Refresh the current view to apply new setting
   refreshCurrentView();
 }
 
@@ -1853,10 +1870,13 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
         continue;
       }
 
-      // Get current file content
-      const currentResponse = await fetch(`${API}/file-content?filePath=${encodeURIComponent(file.file)}`);
-      const currentData = await currentResponse.json();
-      let currentContent = currentData.success ? currentData.content : '';
+      // Get current file content (only needed if compareToCurrent is ON)
+      let currentContent = '';
+      if (compareToCurrent) {
+        const currentResponse = await fetch(`${API}/file-content?filePath=${encodeURIComponent(file.file)}`);
+        const currentData = await currentResponse.json();
+        currentContent = currentData.success ? currentData.content : '';
+      }
 
       // Use the new generateDiff function for consistent rendering
       // Swap: Show date in diff label instead of hash
@@ -1899,15 +1919,41 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
       // Compare the file against itself (commit version vs commit version)
       // This makes it behave like the initial commit - shows content but no diff
       // Only subsequent modifications will show as changed diffs
-      let leftContent = currentContent;
-      let leftLabel = 'Current Version';
+      let leftContent = '';
+      let leftLabel = '';
 
-      // In shifted mode with Added files, we show the commit version on both sides
-      if (diffMode === 'shifted' && file.status === 'A') {
-        leftContent = commitContent;
-        leftLabel = `Version ${hash.substring(0, 8)}`;
+      if (compareToCurrent) {
+        // Compare to Current ON: Use current file as left side
+        leftContent = currentContent;
+        leftLabel = 'Current Version';
+
+        // In shifted mode with Added files, we show the commit version on both sides
+        if (diffMode === 'shifted' && file.status === 'A') {
+          leftContent = commitContent;
+          leftLabel = `Version ${hash.substring(0, 8)}`;
+        }
+      } else {
+        // Compare to Current OFF: Use parent commit as left side (GitHub-style)
+        if (file.status === 'A') {
+          // For newly added files, left side is empty
+          leftContent = '';
+          leftLabel = 'Before';
+        } else {
+          // Get parent commit's version
+          const parentResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(file.file)}&commitHash=${effectiveCompareHash}^`);
+          const parentData = await parentResponse.json();
+          leftContent = parentData.success ? parentData.content : '';
+
+          // Remove filename if present
+          if (leftContent.startsWith(file.file)) {
+            leftContent = leftContent.substring(leftContent.indexOf('\n') + 1);
+          }
+
+          leftLabel = 'Before';
+        }
+        // Update rightLabel to show the commit date
+        rightLabel = commitDate ? formatDateForBanner(commitDate) : `Version ${effectiveCompareHash.substring(0, 8)}`;
       }
-      // Otherwise, left is always "Current Version" (because it IS the current live version)
 
       const currentLines = leftContent.split(/\r\n?|\n/);
       const commitLines = commitContent.split(/\r\n?|\n/);
@@ -2661,16 +2707,47 @@ async function loadAutomationHistoryDiff() {
   if (!auto) return;
 
   const currentContent = dumpYaml(auto.content);
-  let compareToContent = '';
+  let leftContent = '';
+  let rightContent = '';
+  let leftLabel = '';
+  let rightLabel = '';
 
-  // Automations tab always uses standard mode - compare current to the version being viewed
-  compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
+  if (compareToCurrent) {
+    // Compare to Current ON: Compare current version (left) vs commit version (right)
+    // Note: renderDiff swaps args, so we pass (right, left)
+    const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
+
+    leftContent = currentContent;
+    rightContent = commitContent;
+    leftLabel = 'Current Version';
+    rightLabel = formatDateForBanner(currentCommit.date);
+  } else {
+    // Compare to Current OFF: Compare parent (left) vs commit (right)
+    const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
+
+    // Get parent content from the next item in history (since history is sorted newest to oldest)
+    // If this is the last item, treat it as Added (empty parent)
+    let parentContent = '';
+    const parentIndex = currentAutomationHistoryIndex + 1;
+    if (parentIndex < currentAutomationHistory.length) {
+      const parentCommit = currentAutomationHistory[parentIndex];
+      parentContent = parentCommit.yamlContent || dumpYaml(parentCommit.automation);
+    }
+
+    leftContent = parentContent;
+    rightContent = commitContent;
+    leftLabel = 'Before';
+    rightLabel = formatDateForBanner(currentCommit.date);
+  }
 
   const startLine = (auto && auto.line) ? (auto.line - 1) : 0;
 
-  const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('automationDiffContent'), {
-    leftLabel: 'Current Version',
-    rightLabel: formatDateForBanner(currentCommit.date),
+  // renderDiff expects (commitContent, currentContent) and calls generateDiff(currentContent, commitContent)
+  // i.e. generateDiff(Left, Right)
+  // So we pass (Right, Left) to renderDiff
+  const diffHtml = renderDiff(rightContent, leftContent, document.getElementById('automationDiffContent'), {
+    leftLabel: leftLabel,
+    rightLabel: rightLabel,
     startLineOffset: startLine,
     filePath: 'automations.yaml'
   });
@@ -2944,16 +3021,44 @@ async function loadScriptHistoryDiff() {
   if (!script) return;
 
   const currentContent = dumpYaml(script.content);
-  let compareToContent = '';
+  let leftContent = '';
+  let rightContent = '';
+  let leftLabel = '';
+  let rightLabel = '';
 
-  // Scripts tab always uses standard mode - compare current to the version being viewed
-  compareToContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
+  if (compareToCurrent) {
+    // Compare to Current ON: Compare current version (left) vs commit version (right)
+    const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
+
+    leftContent = currentContent;
+    rightContent = commitContent;
+    leftLabel = 'Current Version';
+    rightLabel = formatDateForBanner(currentCommit.date);
+  } else {
+    // Compare to Current OFF: Compare parent (left) vs commit (right)
+    const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
+
+    // Get parent content from the next item in history
+    let parentContent = '';
+    const parentIndex = currentScriptHistoryIndex + 1;
+    if (parentIndex < currentScriptHistory.length) {
+      const parentCommit = currentScriptHistory[parentIndex];
+      parentContent = parentCommit.yamlContent || dumpYaml(parentCommit.script);
+    }
+
+    leftContent = parentContent;
+    rightContent = commitContent;
+    leftLabel = 'Before';
+    rightLabel = formatDateForBanner(currentCommit.date);
+  }
 
   const startLine = (script && script.line) ? (script.line - 1) : 0;
 
-  const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('scriptDiffContent'), {
-    leftLabel: 'Current Version',
-    rightLabel: formatDateForBanner(currentCommit.date),
+  // renderDiff expects (commitContent, currentContent) -> generateDiff(currentContent, commitContent)
+  // So we pass (Right, Left) to renderDiff
+  const diffHtml = renderDiff(rightContent, leftContent, document.getElementById('scriptDiffContent'), {
+    leftLabel: leftLabel,
+    rightLabel: rightLabel,
     startLineOffset: startLine,
     filePath: 'scripts.yaml'
   });
@@ -3241,48 +3346,75 @@ async function loadFileHistoryDiff(filePath) {
   document.getElementById('prevBtn').disabled = currentFileHistoryIndex === 0;
   document.getElementById('nextBtn').disabled = currentFileHistoryIndex === currentFileHistory.length - 1;
 
-  // Get current file content
-  const currentContentResponse = await fetch(`${API}/file-content?filePath=${encodeURIComponent(filePath)}`);
-  const currentContentData = await currentContentResponse.json();
-  const currentContent = currentContentData.success ? currentContentData.content : '';
-
   // Check if this is a newly added file (using status from git log)
   const isNewlyAdded = currentCommit.status === 'A';
 
-  let compareToContent = '';
+  let leftContent = '';
+  let rightContent = '';
+  let leftLabel = '';
+  let rightLabel = '';
 
-  if (isNewlyAdded) {
-    // For newly added files, show a no-change diff (current vs current)
-    // since there's no previous version to compare against
-    compareToContent = currentContent;
+  if (compareToCurrent) {
+    // Compare to Current ON: Compare current file to the selected version
+    const currentContentResponse = await fetch(`${API}/file-content?filePath=${encodeURIComponent(filePath)}`);
+    const currentContentData = await currentContentResponse.json();
+    const currentContent = currentContentData.success ? currentContentData.content : '';
 
-    // Show the content as a no-change diff
-    renderDiff(compareToContent, currentContent, document.getElementById('fileDiffContent'), {
-      leftLabel: 'Current Version',
-      rightLabel: 'Current Version',
-      filePath: filePath
-    });
+    if (isNewlyAdded) {
+      // For newly added files, show the content as no-change diff
+      leftContent = currentContent;
+      rightContent = currentContent;
+      leftLabel = 'Current Version';
+      rightLabel = 'Current Version';
+    } else {
+      // Normal files: compare current to the version being viewed
+      const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}`);
+      const commitData = await commitResponse.json();
+      const commitContent = commitData.success ? commitData.content : '';
 
-    // Don't show restore button for newly added files (can't restore to non-existent state)
-    document.getElementById('rightPanelActions').innerHTML = '';
+      leftContent = commitContent;
+      rightContent = currentContent;
+      leftLabel = 'Current Version';
+      rightLabel = formatDateForBanner(currentCommit.date);
+    }
   } else {
-    // Normal files: compare current to the version being viewed
+    // Compare to Current OFF: Compare selected version to its parent (GitHub-style)
+    // Get the version content
     const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}`);
     const commitData = await commitResponse.json();
-    compareToContent = commitData.success ? commitData.content : '';
+    const commitContent = commitData.success ? commitData.content : '';
 
-    // Always: current on left, compareToContent on right
-    const diffHtml = renderDiff(compareToContent, currentContent, document.getElementById('fileDiffContent'), {
-      leftLabel: 'Current Version',
-      rightLabel: formatDateForBanner(currentCommit.date),
-      filePath: filePath
-    });
-
-    if (diffHtml) {
-      document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreFileVersion('${filePath}')" title="${t('diff.tooltip_overwrite_file')}">${t('timeline.restore_commit')}</button>`;
+    if (isNewlyAdded) {
+      // For newly added files, show all as additions (compare to empty)
+      leftContent = '';
+      rightContent = commitContent;
+      leftLabel = 'Before';
+      rightLabel = formatDateForBanner(currentCommit.date);
     } else {
-      document.getElementById('rightPanelActions').innerHTML = '';
+      // Get the parent commit's version
+      const parentResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}^`);
+      const parentData = await parentResponse.json();
+      const parentContent = parentData.success ? parentData.content : '';
+
+      leftContent = parentContent;
+      rightContent = commitContent;
+      leftLabel = 'Before';
+      rightLabel = formatDateForBanner(currentCommit.date);
     }
+  }
+
+  // Render the diff
+  const diffHtml = renderDiff(leftContent, rightContent, document.getElementById('fileDiffContent'), {
+    leftLabel: leftLabel,
+    rightLabel: rightLabel,
+    filePath: filePath
+  });
+
+  // Show restore button only if compareToCurrent is ON and there are changes
+  if (compareToCurrent && diffHtml && !isNewlyAdded) {
+    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreFileVersion('${filePath}')" title="${t('diff.tooltip_overwrite_file')}">${t('timeline.restore_commit')}</button>`;
+  } else {
+    document.getElementById('rightPanelActions').innerHTML = '';
   }
 }
 
