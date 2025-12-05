@@ -1824,7 +1824,7 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
   let compareDate = commitDate; // Default: date of the commit being viewed
   let isOldestCommit = false;
 
-  if (diffMode === 'shifted') {
+  if (diffMode === 'shifted' && compareToCurrent) {
     // Find this commit's position in allCommits
     const commitIndex = allCommits.findIndex(c => c.hash === hash);
     isOldestCommit = commitIndex === allCommits.length - 1;
@@ -1845,7 +1845,7 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
   for (const file of files) {
     try {
       // For oldest commit in shifted mode, don't try to fetch/compare - just show files
-      if (diffMode === 'shifted' && isOldestCommit) {
+      if (diffMode === 'shifted' && isOldestCommit && compareToCurrent) {
         // Get commit version to display the file
         const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(file.file)}&commitHash=${hash}`);
         const commitData = await commitResponse.json();
@@ -1891,7 +1891,7 @@ async function displayCommitDiff(status, hash, diff, commitDate = null) {
       // the "Added" view would show those future changes, which is confusing.
       // Instead, we compare the commit against ITSELF. This results in "No changes found",
       // which our renderer handles by showing the clean file content.
-      if (diffMode === 'shifted') {
+      if (diffMode === 'shifted' && compareToCurrent) {
         if (file.status === 'A') {
           effectiveCompareHash = hash; // Compare to itself
           // For the "Current" side (left), we also want to show the commit version, not live
