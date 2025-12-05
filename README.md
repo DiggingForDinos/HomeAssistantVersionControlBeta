@@ -36,8 +36,8 @@ Home Assistant Version Control provides complete version history for your setup.
   * **Comparison:**
     * **Current (Default):** Compare against your **Current File** on disk to see how far you've deviated since that backup.
     * **Changes:** Compare against the **Previous Version** to see exactly what changed in that specific backup.
+
   * **Style:** Customize your comparisons with 8 different themes (High Contrast, GitHub Classic, Neon, etc.).
-  * **Changes First:** Toggle to automatically shift the comparison view to show the first change immediately.
 
 ---
 

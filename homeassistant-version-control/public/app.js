@@ -930,6 +930,13 @@ function setCompareMode(mode) {
   compareToCurrent = isCurrent;
   localStorage.setItem('compareToCurrent', isCurrent);
 
+  // Auto-update diffMode based on comparison type
+  // Current -> Shifted (Changes First)
+  // Previous -> Standard (Normal Diff)
+  const newDiffMode = isCurrent ? 'shifted' : 'standard';
+  diffMode = newDiffMode;
+  localStorage.setItem('diffMode', newDiffMode);
+
   // Refresh the current view to apply new setting
   refreshCurrentView();
 }
