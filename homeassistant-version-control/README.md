@@ -20,7 +20,7 @@ Home Assistant Version Control provides complete version history for your setup.
 
 ###  Timeline & History
 * **Chronological Feed:** View changes grouped by "Today," "Yesterday," and "Earlier."
-* **Visual Diffs:** Compare the current version against any backup side-by-side. Additions are highlighted in **green**, deletions in **red**.
+* **Visual Comparisons:** Compare the current version against any backup side-by-side. Additions are highlighted in **green**, deletions in **red**.
 * **History Management:** Automatically merges versions older than the specified time period to keep your history clean.
 
 ###  Instant Restore
@@ -34,10 +34,10 @@ Home Assistant Version Control provides complete version history for your setup.
 * **Comparison View:**
   * **Layout:** Choose between Stacked (Unified) or Side-by-Side views.
   * **Comparison:**
-    * **Changes (Default):** Compare against the **Previous Version** to see exactly what changed in that specific backup.
-    * **Current:** Compare against your **Current File** on disk to see how far you've deviated since that backup.
-  * **Style:** Customize your diffs with 8 different themes (High Contrast, GitHub Classic, Neon, etc.).
-  * **Changes First:** Toggle to automatically shift the diff view to show the first change immediately.
+    * **Current (Default):** Compare against your **Current File** on disk to see how far you've deviated since that backup.
+    * **Changes:** Compare against the **Previous Version** to see exactly what changed in that specific backup.
+  * **Style:** Customize your comparisons with 8 different themes (High Contrast, GitHub Classic, Neon, etc.).
+  * **Changes First:** Toggle to automatically shift the comparison view to show the first change immediately.
 
 ---
 
@@ -175,8 +175,8 @@ API for advanced users or automation.
 | `POST` | `/api/git/hard-reset` | **Hard Reset:** Reset the repository to a specific commit (destructive). |
 | `POST` | `/api/ha/restart` | **Restart HA:** Triggers a Home Assistant restart. |
 | `GET` | `/api/git/history` | **Get History:** Returns the full commit history log. |
-| `GET` | `/api/git/file-diff` | **File Diff:** Get the diff for a specific file in a commit. |
-| `GET` | `/api/git/commit-diff` | **Commit Diff:** Get the full diff for a specific commit. |
+| `GET` | `/api/git/file-diff` | **File Comparison:** Get the diff for a specific file in a commit. |
+| `GET` | `/api/git/commit-diff` | **Commit Comparison:** Get the full diff for a specific commit. |
 
 ### Endpoint Details
 

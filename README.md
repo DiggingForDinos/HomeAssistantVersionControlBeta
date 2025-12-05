@@ -18,23 +18,26 @@ Home Assistant Version Control provides complete version history for your setup.
 * **Comprehensive Tracking:** Monitors `.yaml`, `.yml`, and `lovelace` dashboard files (both UI and YAML mode).
 * **Efficient Storage:** Uses Git deduplication to minimize disk usage.
 
-###  Timeline & History
+### Timeline & History
 * **Chronological Feed:** View changes grouped by "Today," "Yesterday," and "Earlier."
-* **Visual Diffs:** Compare the current version against any backup side-by-side. Additions are highlighted in **green**, deletions in **red**.
+* **Visual Comparisons:** Compare the current version against any backup side-by-side. Additions are highlighted in **green**, deletions in **red**.
 * **History Management:** Automatically merges versions older than the specified time period to keep your history clean.
 
-###  Instant Restore
+### Instant Restore
 * **Granular Control:** Restore specific files or revert your entire configuration.
 * **Smart Reloads:** Automatically reloads Home Assistant when restoring automation or script files to apply changes immediately.
 * **Instant Rollback:** Long-press the restore button to revert the entire system to a previous point in time.
 
-###  Customization
+### Customization
 * **Color Theme:** Choose from seven preset color palettes.
 * **Light Themes:** Toggle between Light and Dark modes.
-* **Comparison View:** Customize your comparison experience with 8 different styles (High Contrast, GitHub Classic, Neon, etc.) and choose between Stacked or Side-by-Side layouts.
-* **Comparison Change Mode:**
-  * **On (Default):** Compares your **current live files** against the **version before the selected backup**. This highlights the changes introduced in that backup *plus* any subsequent changes.
-  * **Off:** Compares your **current live files** against the **selected backup**. This shows exactly how your current system differs from that specific point in time.
+* **Comparison View:**
+  * **Layout:** Choose between Stacked (Unified) or Side-by-Side views.
+  * **Comparison:**
+    * **Current (Default):** Compare against your **Current File** on disk to see how far you've deviated since that backup.
+    * **Changes:** Compare against the **Previous Version** to see exactly what changed in that specific backup.
+  * **Style:** Customize your comparisons with 8 different themes (High Contrast, GitHub Classic, Neon, etc.).
+  * **Changes First:** Toggle to automatically shift the comparison view to show the first change immediately.
 
 ---
 
@@ -128,14 +131,13 @@ Access the interface at `http://localhost:54001`.
 
 ---
 
-
 ### Restore Actions
 * **Restore Single File:** Click the "Restore" button on any file in the timeline.
 * **Restore All Files:** Long-press (2 seconds) the "Restore" button on a timeline entry to revert **all tracked files** to that exact moment.
 
 ---
 
-##  How It Works
+## How It Works
 
 ### The Workflow
 1.  **File Watcher:** The system continuously monitors your `/config` folder for changes to YAML files.
@@ -172,8 +174,8 @@ API for advanced users or automation.
 | `POST` | `/api/git/hard-reset` | **Hard Reset:** Reset the repository to a specific commit (destructive). |
 | `POST` | `/api/ha/restart` | **Restart HA:** Triggers a Home Assistant restart. |
 | `GET` | `/api/git/history` | **Get History:** Returns the full commit history log. |
-| `GET` | `/api/git/file-diff` | **File Diff:** Get the diff for a specific file in a commit. |
-| `GET` | `/api/git/commit-diff` | **Commit Diff:** Get the full diff for a specific commit. |
+| `GET` | `/api/git/file-diff` | **File Comparison:** Get the diff for a specific file in a commit. |
+| `GET` | `/api/git/commit-diff` | **Commit Comparison:** Get the full diff for a specific commit. |
 
 ### Endpoint Details
 
