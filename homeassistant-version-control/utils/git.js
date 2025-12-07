@@ -248,3 +248,13 @@ export async function gitRevparse(args) {
     const { stdout } = await gitExec(['rev-parse', ...args]);
     return stdout.trim();
 }
+
+export async function gitRmCached(path) {
+    try {
+        await gitExec(['rm', '--cached', '-f', path]);
+        return true;
+    } catch (e) {
+        // Ignore errors if file is not in index
+        return false;
+    }
+}

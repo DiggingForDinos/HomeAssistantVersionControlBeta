@@ -15,7 +15,9 @@ import {
   gitDiff,
   gitCheckout,
   gitBranch,
-  gitRevparse
+  gitRevparse,
+  gitRmCached
+
 } from './utils/git.js';
 import chokidar from 'chokidar';
 import fs from 'fs';
@@ -352,7 +354,15 @@ function getConfiguredExtensions() {
  * Generate .gitignore content based on configured extensions
  * @returns {string} .gitignore file content
  */
-function generateGitignoreContent() {
+const IGNORED_NESTED_REPOS = [];
+
+/**
+ * Generate .gitignore content based on configured extensions
+ * @param {Array<string>} extraIgnores - Additional paths to ignore
+ * @returns {string} .gitignore file content
+ */
+function generateGitignoreContent(extraIgnores = []) {
+
   const extensions = getConfiguredExtensions();
   const invisiblePattern = configOptions.invisible_files ? '!**/.??*.' : '';
   const dirTraversal = '!*/';
@@ -385,6 +395,16 @@ function generateGitignoreContent() {
   // Re-ignore macOS metadata files (even if they match allowed extensions)
   content += `\n# Re-ignore macOS metadata files (even if they match allowed extensions)\n`;
   content += `._*\n`;
+
+  // Add dynamically found nested git repos
+  if (extraIgnores.length > 0) {
+    content += `\n# Ignore nested git repositories to prevent submodule conflicts\n`;
+    for (const ignoredPath of extraIgnores) {
+      content += `/${ignoredPath}\n`;
+      content += `/${ignoredPath}/**\n`;
+    }
+  }
+
 
   return content;
 }
@@ -507,6 +527,54 @@ async function getConfigFiles() {
   });
 }
 
+/**
+ * Find all nested .git directories
+ * @returns {Promise<Array<string>>} List of relative paths to directories containing .git
+ */
+async function findNestedGitRepos() {
+  const { promises: fsPromises } = await import('fs');
+  const nestedRepos = [];
+
+  try {
+    // Recursive readdir available in Node 20+
+    const files = await fsPromises.readdir(CONFIG_PATH, { recursive: true, withFileTypes: true });
+
+    for (const file of files) {
+      if (file.isDirectory() && file.name === '.git') {
+        // file.parentPath (Node 20+) is the absolute path to the parent directory (if readdir called with abs path)
+        // file.path is alias to parentPath in newer node
+        const parentDir = file.parentPath || file.path;
+
+        // Ensure we have absolute path to the directory containing .git
+        const repoDir = path.isAbsolute(parentDir) ? parentDir : path.join(CONFIG_PATH, parentDir);
+
+        const gitDir = path.join(repoDir, file.name);
+
+        // Exclude root .git
+        const rootGit = path.join(CONFIG_PATH, '.git');
+        if (gitDir === rootGit) {
+          continue;
+        }
+
+        // The repo dir is the directory containing .git (which is repoDir)
+        const relativePath = path.relative(CONFIG_PATH, repoDir);
+
+        if (relativePath && relativePath !== '.') {
+          nestedRepos.push(relativePath);
+        }
+      }
+    }
+
+    if (nestedRepos.length > 0) {
+      console.log('[nested-repos] Found nested git repositories:', nestedRepos);
+    }
+  } catch (e) {
+    console.error('[nested-repos] Error finding nested repos:', e);
+  }
+  return nestedRepos;
+}
+
+
 async function initRepo() {
   try {
     // Determine CONFIG_PATH
@@ -548,13 +616,20 @@ async function initRepo() {
     }
 
     const isRepo = await gitCheckIsRepo();
+
+    // Check for nested git repositories to ignore
+    const nestedRepos = await findNestedGitRepos();
+    if (nestedRepos.length > 0) {
+      IGNORED_NESTED_REPOS.push(...nestedRepos);
+    }
+
     if (!isRepo) {
       console.log(`[init] Initializing Git repo at ${CONFIG_PATH}...`);
       await gitInit();
 
       // Create .gitignore to limit git to only config files
       const gitignorePath = path.join(CONFIG_PATH, '.gitignore');
-      const gitignoreContent = generateGitignoreContent();
+      const gitignoreContent = generateGitignoreContent(nestedRepos);
       try {
         await fsPromises.access(gitignorePath, fs.constants.F_OK);
         console.log('[init] .gitignore already exists in CONFIG_PATH');
@@ -607,7 +682,7 @@ async function initRepo() {
 
     // Create .gitignore to limit git to only config files (only for existing repos)
     const gitignorePath = path.join(CONFIG_PATH, '.gitignore');
-    const gitignoreContent = generateGitignoreContent();
+    const gitignoreContent = generateGitignoreContent(nestedRepos);
 
     if (isRepo) {
       try {
@@ -668,6 +743,19 @@ async function initRepo() {
       }
     } else {
       console.log('[init] No changes to backup for existing repository');
+    }
+
+    // Clean up nested repos from index if they exist
+    if (nestedRepos.length > 0) {
+      console.log('[init] Cleaning up nested git repositories from index...');
+      for (const repoPath of nestedRepos) {
+        // Ensure path uses forward slashes for git command
+        const gitPath = repoPath.replace(/\\/g, '/');
+        const removed = await gitRmCached(gitPath);
+        if (removed) {
+          console.log(`[init] Removed nested git repo from index (cached only): ${gitPath}`);
+        }
+      }
     }
 
     gitInitialized = true;
