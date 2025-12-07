@@ -2291,7 +2291,7 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
-const server = app.listen(PORT, HOST, async (err) => {
+const server = app.listen(PORT, HOST, (err) => {
   if (err) {
     console.error('[init] Failed to start server:', err);
     process.exit(1);
@@ -2302,13 +2302,14 @@ const server = app.listen(PORT, HOST, async (err) => {
   console.log('='.repeat(60));
   console.log(`Server running at http://${HOST}:${PORT}`);
 
-  try {
-    await initRepo();
-    // Initialize file watcher (always enabled)
-    initializeWatcher();
-  } catch (error) {
-    console.error('[init] Initialization error:', error);
-  }
+  // Run initialization in background to avoid blocking server startup
+  initRepo()
+    .then(() => {
+      initializeWatcher();
+    })
+    .catch((error) => {
+      console.error('[init] Background initialization error:', error);
+    });
 });
 
 // Get all automations
