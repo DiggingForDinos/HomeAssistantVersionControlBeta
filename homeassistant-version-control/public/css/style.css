@@ -89,13 +89,13 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   transition: background-color 0.3s ease, color 0.3s ease;
-  padding: 32px 24px;
+  padding: clamp(16px, 2vh, 32px) clamp(12px, 2vw, 24px);
   height: 100vh;
   overflow: hidden;
 }
 
 .container {
-  max-width: 1400px;
+  max-width: clamp(900px, 92vw, 1800px);
   margin: 0 auto;
   padding: 0 12px;
   display: flex;
@@ -151,8 +151,8 @@ body {
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 28px 32px;
-  margin-bottom: 32px;
+  padding: clamp(16px, 2vh, 28px) clamp(20px, 3vw, 32px);
+  margin-bottom: clamp(16px, 2vh, 32px);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -182,7 +182,7 @@ body {
 .tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: clamp(12px, 1.5vh, 24px);
   padding: 6px;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
