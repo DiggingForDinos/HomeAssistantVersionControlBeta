@@ -90,13 +90,17 @@ body {
   line-height: 1.6;
   transition: background-color 0.3s ease, color 0.3s ease;
   padding: 32px 24px;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .container {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 /* === Theme Toggle === */
@@ -219,6 +223,8 @@ body {
   box-sizing: border-box;
   margin-top: 16px;
   padding: 0;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Adjust layout for smaller screens */
@@ -251,7 +257,7 @@ body {
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 280px);
+  height: 100%;
   overflow: hidden;
   transition: all 0.3s ease;
 }
