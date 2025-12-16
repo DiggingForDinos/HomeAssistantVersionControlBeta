@@ -939,11 +939,12 @@ app.get('/api/files/deleted', async (req, res) => {
     ensureGitInitialized();
     console.log('[deleted-files] Scanning git history for deleted files...');
 
-    // Get all files currently on disk
+    // Get all files currently on disk (returns absolute paths)
     const currentFiles = await getConfigFiles();
-    const currentFileSet = new Set(currentFiles);
+    // Convert to relative paths for comparison with git history
+    const currentFileSet = new Set(currentFiles.map(f => path.relative(CONFIG_PATH, f)));
 
-    // Get all files ever tracked in git history
+    // Get all files ever tracked in git history (returns relative paths)
     // Use git log to find all files that were ever committed
     const gitLogOutput = await gitRaw(['log', '--all', '--name-only', '--pretty=format:', '--diff-filter=ACMRD']);
     const allHistoricalFiles = gitLogOutput
@@ -963,7 +964,11 @@ app.get('/api/files/deleted', async (req, res) => {
       const matchesExtension = allowedExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
       const isLovelaceFile = filePath.startsWith('.storage/lovelace');
 
-      if ((matchesExtension || isLovelaceFile) && !currentFileSet.has(filePath)) {
+      // Check if file exists on disk (using absolute path)
+      const absolutePath = path.join(CONFIG_PATH, filePath);
+      const fileExistsOnDisk = fs.existsSync(absolutePath);
+
+      if ((matchesExtension || isLovelaceFile) && !fileExistsOnDisk) {
         // File was tracked but no longer exists - find when it was last seen
         try {
           const lastCommitOutput = await gitRaw(['log', '-1', '--format=%H|%aI|%s', '--', filePath]);

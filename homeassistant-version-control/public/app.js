@@ -2304,7 +2304,7 @@ function displayDeletedFiles(files) {
 async function selectDeletedFile(filePath, lastSeenHash) {
   // Load the file history for the deleted file
   currentSelection = { type: 'deleted_file', path: filePath, hash: lastSeenHash };
-  await loadFileHistory(filePath);
+  await showFileHistory(filePath);
 }
 
 // Load deleted automations (automations that exist in git history but not in current config)
@@ -2358,7 +2358,7 @@ function displayDeletedAutomations(automations) {
 
 async function selectDeletedAutomation(automationId, name) {
   currentSelection = { type: 'deleted_automation', id: automationId, name: name };
-  await loadAutomationHistory(automationId, name);
+  await showAutomationHistory(automationId);
 }
 
 // Load deleted scripts (scripts that exist in git history but not in current config)
@@ -2412,7 +2412,7 @@ function displayDeletedScripts(scripts) {
 
 async function selectDeletedScript(scriptId, name) {
   currentSelection = { type: 'deleted_script', id: scriptId, name: name };
-  await loadScriptHistory(scriptId, name);
+  await showScriptHistory(scriptId);
 }
 
 function createFolderBreadcrumb(filePath) {
