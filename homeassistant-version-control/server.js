@@ -1030,24 +1030,65 @@ app.get('/api/automations/deleted', async (req, res) => {
             if (content) {
               // Parse YAML to find automation IDs
               const parsed = yaml.load(content);
-              const automations = Array.isArray(parsed) ? parsed : [];
+              const automations = Array.isArray(parsed) ? parsed : (parsed && parsed.automations ? parsed.automations : []);
 
-              for (const auto of automations) {
-                const id = auto.id || auto.alias;
-                if (id && !currentAutomationIds.has(id)) {
-                  // This is a deleted automation - track it if we haven't seen it yet
-                  // or if this commit is newer
-                  const existing = allAutomationIds.get(id);
-                  if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
-                    allAutomationIds.set(id, {
-                      id,
-                      name: auto.alias || id,
-                      file: relPath,
-                      lastSeenDate: date,
-                      lastSeenHash: hash
-                    });
+              const isArray = Array.isArray(automations);
+              const collection = isArray ? automations : (typeof automations === 'object' ? automations : {});
+
+              if (isArray) {
+                collection.forEach((auto, index) => {
+                  if (auto && typeof auto === 'object' && auto.alias) {
+                    const uniqueId = auto.id || index;
+                    const fullId = `automations:${encodeURIComponent(relPath)}:${uniqueId}`;
+
+                    if (!currentAutomationIds.has(fullId)) {
+                      // Double check: if we used index, maybe the current version has a UUID now?
+                      // But we can't easily check that without loading the current automation content again.
+                      // For now, relying on the ID format consistency should fix the main "everything deleted" bug.
+                      // Also check if the raw ID exists in current set if available
+                      // This is tricky because currentAutomationIds IS the set of full IDs.
+
+                      // Attempt to match by raw ID if available, as a fallback?
+                      // No, extractAutomations puts UUID in the ID if available. 
+                      // So if history has UUID, fullId uses UUID. Current has UUID, fullId uses UUID. It matches.
+
+                      const existing = allAutomationIds.get(fullId);
+                      if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
+                        allAutomationIds.set(fullId, {
+                          id: fullId,
+                          rawId: auto.id,
+                          name: auto.alias || 'Unknown Automation',
+                          file: relPath,
+                          lastSeenDate: date,
+                          lastSeenHash: hash
+                        });
+                      }
+                    }
                   }
-                }
+                });
+              } else {
+                // Object format
+                Object.keys(collection).forEach(key => {
+                  const auto = collection[key];
+                  if (auto && typeof auto === 'object' && auto.alias) {
+                    const uniqueId = auto.id || key;
+                    const fullId = `automations:${encodeURIComponent(relPath)}:${uniqueId}`;
+
+                    if (!currentAutomationIds.has(fullId)) {
+                      const existing = allAutomationIds.get(fullId);
+                      if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
+                        allAutomationIds.set(fullId, {
+                          id: fullId,
+                          rawId: auto.id,
+                          name: auto.alias || key,
+                          file: relPath,
+                          lastSeenDate: date,
+                          lastSeenHash: hash
+                        });
+                      }
+                    }
+                  }
+                });
               }
             }
           } catch (e) {
@@ -1101,19 +1142,52 @@ app.get('/api/scripts/deleted', async (req, res) => {
             if (content) {
               // Parse YAML to find script IDs
               const parsed = yaml.load(content);
-              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                for (const [scriptId, scriptConfig] of Object.entries(parsed)) {
-                  if (scriptId && !currentScriptIds.has(scriptId)) {
-                    // This is a deleted script - track it if we haven't seen it yet
-                    const existing = allScriptIds.get(scriptId);
-                    if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
-                      allScriptIds.set(scriptId, {
-                        id: scriptId,
-                        name: scriptConfig?.alias || scriptId,
-                        file: relPath,
-                        lastSeenDate: date,
-                        lastSeenHash: hash
-                      });
+              if (parsed && typeof parsed === 'object') {
+                // Standard scripts.yaml is an object key->config
+                // But could technically be an array in some split configs? safely assume object for now as per previous logic
+                // Actually extractScripts handles arrays too. Let's start with Object support as that's standard for scripts.yaml
+
+                // Support array if it happens (though rare for scripts)
+                if (Array.isArray(parsed)) {
+                  parsed.forEach((script, index) => {
+                    if (script && script.alias) {
+                      const uniqueId = script.id || index;
+                      const fullId = `scripts:${encodeURIComponent(relPath)}:${uniqueId}`;
+                      if (!currentScriptIds.has(fullId)) {
+                        const existing = allScriptIds.get(fullId);
+                        if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
+                          allScriptIds.set(fullId, {
+                            id: fullId,
+                            rawId: script.id,
+                            name: script.alias || 'Unknown Script',
+                            file: relPath,
+                            lastSeenDate: date,
+                            lastSeenHash: hash
+                          });
+                        }
+                      }
+                    }
+                  });
+                } else {
+                  for (const [key, scriptConfig] of Object.entries(parsed)) {
+                    // scriptConfig might be null or not have alias
+                    if (scriptConfig && typeof scriptConfig === 'object') {
+                      const uniqueId = scriptConfig.id || key;
+                      const fullId = `scripts:${encodeURIComponent(relPath)}:${uniqueId}`;
+
+                      if (!currentScriptIds.has(fullId)) {
+                        const existing = allScriptIds.get(fullId);
+                        if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
+                          allScriptIds.set(fullId, {
+                            id: fullId,
+                            rawId: scriptConfig.id,
+                            name: scriptConfig.alias || key,
+                            file: relPath,
+                            lastSeenDate: date,
+                            lastSeenHash: hash
+                          });
+                        }
+                      }
                     }
                   }
                 }

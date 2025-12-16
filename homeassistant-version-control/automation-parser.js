@@ -175,8 +175,14 @@ export async function extractAutomations(configPath = null) {
             if (Array.isArray(data.automations)) {
               data.automations.forEach((auto, index) => {
                 if (auto.alias) {
+                  // Use UUID if available, otherwise fall back to index
+                  // Format: automations:FILE:UUID_OR_INDEX
+                  const uniqueId = auto.id || index;
+
                   automations.push({
-                    id: `automations:${encodeURIComponent(relativeToConfigPath)}:${index}`,
+                    id: `automations:${encodeURIComponent(relativeToConfigPath)}:${uniqueId}`,
+                    // Also store the raw ID for matching
+                    rawId: auto.id,
                     name: auto.alias,
                     type: 'automation',
                     file: relativeToConfigPath, // Store relative path
@@ -191,14 +197,19 @@ export async function extractAutomations(configPath = null) {
             } else {
               // Object format
               Object.keys(data.automations).forEach(autoName => {
+                const auto = data.automations[autoName];
+                // Use UUID if available, otherwise fall back to key name
+                const uniqueId = auto.id || autoName;
+
                 automations.push({
-                  id: `automations:${encodeURIComponent(relativeToConfigPath)}:${autoName}`,
+                  id: `automations:${encodeURIComponent(relativeToConfigPath)}:${uniqueId}`,
+                  rawId: auto.id,
                   name: autoName,
                   type: 'automation',
                   file: relativeToConfigPath, // Store relative path
                   key: autoName,
-                  content: data.automations[autoName],
-                  line: findStartLine(fileLines, data.automations[autoName]),
+                  content: auto,
+                  line: findStartLine(fileLines, auto),
                   fullPath: filePath,
                   mtime: mtime
                 });
@@ -207,32 +218,51 @@ export async function extractAutomations(configPath = null) {
           } else {
             // Standard Home Assistant format: automations at root level
             // Check if this looks like an automation by checking for automation-specific properties
-            Object.keys(data).forEach(key => {
-              const auto = data[key];
-              // Skip comments and other non-object entries
-              if (auto && typeof auto === 'object' && auto.alias) {
-                // Automations have triggers (or trigger) and/or conditions
-                // Scripts have sequence
-                const hasTriggers = auto.triggers || auto.trigger;
-                const hasConditions = auto.conditions || auto.condition;
-                const hasSequence = auto.sequence;
-
-                // If it has triggers, it's an automation
-                if (hasTriggers) {
+            if (Array.isArray(data)) {
+              data.forEach((auto, index) => {
+                if (auto && typeof auto === 'object' && auto.alias) {
+                  const uniqueId = auto.id || index;
                   automations.push({
-                    id: `automations:${encodeURIComponent(relativeToConfigPath)}:${key}`,
-                    name: auto.alias || key,
+                    id: `automations:${encodeURIComponent(relativeToConfigPath)}:${uniqueId}`,
+                    rawId: auto.id,
+                    name: auto.alias,
                     type: 'automation',
-                    file: relativeToConfigPath, // Store relative path
-                    key: key,
+                    file: relativeToConfigPath,
+                    index: index,
                     content: auto,
                     line: findStartLine(fileLines, auto),
                     fullPath: filePath,
                     mtime: mtime
                   });
                 }
-              }
-            });
+              });
+            } else {
+              Object.keys(data).forEach(key => {
+                const auto = data[key];
+                // Skip comments and other non-object entries
+                if (auto && typeof auto === 'object' && auto.alias) {
+                  // Automations have triggers (or trigger) and/or conditions
+                  const hasTriggers = auto.triggers || auto.trigger;
+
+                  // If it has triggers, it's an automation
+                  if (hasTriggers) {
+                    const uniqueId = auto.id || key;
+                    automations.push({
+                      id: `automations:${encodeURIComponent(relativeToConfigPath)}:${uniqueId}`,
+                      rawId: auto.id,
+                      name: auto.alias || key,
+                      type: 'automation',
+                      file: relativeToConfigPath, // Store relative path
+                      key: key,
+                      content: auto,
+                      line: findStartLine(fileLines, auto),
+                      fullPath: filePath,
+                      mtime: mtime
+                    });
+                  }
+                }
+              });
+            }
           }
         }
       } catch (error) {
@@ -286,8 +316,10 @@ export async function extractScripts(configPath = null) {
             if (Array.isArray(data.scripts)) {
               data.scripts.forEach((script, index) => {
                 if (script.alias) {
+                  const uniqueId = script.id || index;
                   scripts.push({
-                    id: `scripts:${encodeURIComponent(relativeToConfigPath)}:${index}`,
+                    id: `scripts:${encodeURIComponent(relativeToConfigPath)}:${uniqueId}`,
+                    rawId: script.id,
                     name: script.alias,
                     type: 'script',
                     file: relativeToConfigPath, // Store relative path
@@ -302,8 +334,11 @@ export async function extractScripts(configPath = null) {
             } else {
               // Object format
               Object.keys(data.scripts).forEach(scriptName => {
+                const script = data.scripts[scriptName];
+                const uniqueId = script.id || scriptName;
                 scripts.push({
-                  id: `scripts:${encodeURIComponent(relativeToConfigPath)}:${scriptName}`,
+                  id: `scripts:${encodeURIComponent(relativeToConfigPath)}:${uniqueId}`,
+                  rawId: script.id,
                   name: scriptName,
                   type: 'script',
                   file: relativeToConfigPath, // Store relative path
@@ -325,13 +360,14 @@ export async function extractScripts(configPath = null) {
                 // Scripts have sequence
                 // Automations have triggers (or trigger) and/or conditions
                 const hasTriggers = script.triggers || script.trigger;
-                const hasConditions = script.conditions || script.condition;
                 const hasSequence = script.sequence;
 
                 // If it has sequence but NOT triggers, it's a script
                 if (hasSequence && !hasTriggers) {
+                  const uniqueId = script.id || key;
                   scripts.push({
-                    id: `scripts:${encodeURIComponent(relativeToConfigPath)}:${key}`,
+                    id: `scripts:${encodeURIComponent(relativeToConfigPath)}:${uniqueId}`,
+                    rawId: script.id,
                     name: script.alias || key,
                     type: 'script',
                     file: relativeToConfigPath, // Store relative path
@@ -465,13 +501,15 @@ export async function getAutomationHistory(automationId, configPath) {
     debugMessages.push(`[getAutomationHistory] ${configPath} IS a Git repository.`);
 
     try {
-      // Check if the file is tracked by Git
+      // Check if the file is tracked by Git (or WAS tracked)
+      // We accept error here because for deleted files, it might fail ls-files check if we don't look carefully,
+      // but strictly speaking we just want to look at logs.
       await gitRaw(['ls-files', '--error-unmatch', gitFilePath]);
       debugMessages.push(`[getAutomationHistory] File ${gitFilePath} IS tracked by Git.`);
     } catch (lsFilesError) {
-      debugMessages.push(`[getAutomationHistory] WARNING: File ${gitFilePath} is NOT tracked by Git. Error: ${lsFilesError.message}`);
-      debugMessages.push(`[getAutomationHistory] This means no history can be found for this file.`);
-      return { success: false, history: [], debugMessages };
+      // If it's a deleted file, it won't be in ls-files. But we can still check log.
+      // Only return if log is empty later.
+      debugMessages.push(`[getAutomationHistory] File ${gitFilePath} is not currently tracked (might be deleted). Continuing to check logs.`);
     }
 
     const log = await gitLog({ file: gitFilePath });
@@ -486,33 +524,55 @@ export async function getAutomationHistory(automationId, configPath) {
       try {
         debugMessages.push(`[getAutomationHistory] Checking commit: ${commit.hash.substring(0, 7)} - ${commit.message}`);
         const content = await gitShowFileAtCommit(commit.hash, gitFilePath);
-        // debugMessages.push(`[getAutomationHistory] Content at commit ${commit.hash.substring(0, 7)}:\n${content.substring(0, 200)}...`); // Log first 200 chars
 
         const data = yaml.load(content);
-        // debugMessages.push(`[getAutomationHistory] Parsed YAML data at commit ${commit.hash.substring(0, 7)}:`, JSON.stringify(data, null, 2).substring(0, 200)); // Log first 200 chars of JSON
 
         if (data) {
           let auto = null;
 
-          // First try to find it in wrapped format
+          // Helper to find by ID or Key/Index
+          const findAutomation = (collection, isArray) => {
+            if (isArray) {
+              // Try to find by UUID first
+              const found = collection.find(item => item && item.id === identifier);
+              if (found) return found;
+              // Fallback to index if identifier is numeric
+              if (!isNaN(parseInt(identifier))) {
+                return collection[parseInt(identifier)];
+              }
+            } else { // Object
+              // Try to find by UUID first (values)
+              const found = Object.values(collection).find(item => item && item.id === identifier);
+              if (found) return found;
+              // Fallback to key
+              return collection[identifier];
+            }
+            return null;
+          };
+
           if (data.automations) {
             if (Array.isArray(data.automations)) {
-              auto = data.automations[parseInt(identifier)];
-              debugMessages.push(`[getAutomationHistory] Attempted array lookup for identifier (index): ${identifier}. Found: ${!!auto}`);
+              auto = findAutomation(data.automations, true);
+              debugMessages.push(`[getAutomationHistory] Array lookup for ${identifier}: ${!!auto}`);
             } else {
-              // It's an object
-              auto = data.automations[identifier];
-              debugMessages.push(`[getAutomationHistory] Attempted object lookup for identifier (key): ${identifier}. Found: ${!!auto}`);
+              auto = findAutomation(data.automations, false);
+              debugMessages.push(`[getAutomationHistory] Object lookup for ${identifier}: ${!!auto}`);
             }
           } else {
-            // Try standard Home Assistant format (root level)
-            auto = data[identifier];
-            debugMessages.push(`[getAutomationHistory] Attempted root level lookup for identifier (key): ${identifier}. Found: ${!!auto}`);
+            // Standard Home Assistant format (root level array or object)
+            if (Array.isArray(data)) {
+              auto = findAutomation(data, true);
+            } else {
+              auto = findAutomation(data, false);
+            }
+            debugMessages.push(`[getAutomationHistory] Root lookup for ${identifier}: ${!!auto}`);
           }
 
           if (auto) {
-            // Compare with the previous commit's automation to avoid duplicates
+            // Compare with the previous commit's automation to avoid duplicates (deduplication)
             const prevCommit = commits[commits.length - 1];
+
+            // Allow if it's the first one found (most recent) OR if content changed
             const contentChanged = !prevCommit || JSON.stringify(prevCommit.automation) !== JSON.stringify(auto);
 
             if (contentChanged) {
@@ -535,7 +595,6 @@ export async function getAutomationHistory(automationId, configPath) {
         }
       } catch (error) {
         debugMessages.push(`[getAutomationHistory] Error processing commit ${commit.hash.substring(0, 7)} for file ${gitFilePath}: ${error.message}`);
-        // Automation might not exist in this commit or YAML parsing failed
       }
     }
     debugMessages.push(`[getAutomationHistory] Total automations found in history: ${commits.length}`);
@@ -574,9 +633,7 @@ export async function getScriptHistory(scriptId, configPath) {
       await gitRaw(['ls-files', '--error-unmatch', gitFilePath]);
       debugMessages.push(`[getScriptHistory] File ${gitFilePath} IS tracked by Git.`);
     } catch (lsFilesError) {
-      debugMessages.push(`[getScriptHistory] WARNING: File ${gitFilePath} is NOT tracked by Git. Error: ${lsFilesError.message}`);
-      debugMessages.push(`[getScriptHistory] This means no history can be found for this file.`);
-      return { success: false, history: [], debugMessages };
+      debugMessages.push(`[getScriptHistory] File ${gitFilePath} is not currently tracked (might be deleted). Continuing to check logs.`);
     }
 
     const log = await gitLog({ file: gitFilePath });
@@ -591,28 +648,45 @@ export async function getScriptHistory(scriptId, configPath) {
       try {
         debugMessages.push(`[getScriptHistory] Checking commit: ${commit.hash.substring(0, 7)} - ${commit.message}`);
         const content = await gitShowFileAtCommit(commit.hash, gitFilePath);
-        // debugMessages.push(`[getScriptHistory] Content at commit ${commit.hash.substring(0, 7)}:\n${content.substring(0, 200)}...`); // Log first 200 chars
 
         const data = yaml.load(content);
-        // debugMessages.push(`[getScriptHistory] Parsed YAML data at commit ${commit.hash.substring(0, 7)}:`, JSON.stringify(data, null, 2).substring(0, 200)); // Log first 200 chars of JSON
 
         if (data) {
           let script = null;
 
-          // First try to find it in wrapped format
+          // Helper to find by ID or Key/Index
+          const findScript = (collection, isArray) => {
+            if (isArray) {
+              // Try to find by UUID first
+              const found = collection.find(item => item && item.id === identifier);
+              if (found) return found;
+              // Fallback to index if identifier is numeric
+              if (!isNaN(parseInt(identifier))) {
+                return collection[parseInt(identifier)];
+              }
+            } else { // Object
+              // Try to find by UUID first (values)
+              const found = Object.values(collection).find(item => item && item.id === identifier);
+              if (found) return found;
+              // Fallback to key
+              return collection[identifier];
+            }
+            return null;
+          };
+
           if (data.scripts) {
             if (Array.isArray(data.scripts)) {
-              script = data.scripts[parseInt(identifier)];
-              debugMessages.push(`[getScriptHistory] Attempted array lookup for identifier (index): ${identifier}. Found: ${!!script}`);
+              script = findScript(data.scripts, true);
             } else {
-              // It's an object
-              script = data.scripts[identifier];
-              debugMessages.push(`[getScriptHistory] Attempted object lookup for identifier (key): ${identifier}. Found: ${!!script}`);
+              script = findScript(data.scripts, false);
             }
           } else {
-            // Try standard Home Assistant format (root level)
-            script = data[identifier];
-            debugMessages.push(`[getScriptHistory] Attempted root level lookup for identifier (key): ${identifier}. Found: ${!!script}`);
+            // Standard format (root level)
+            if (Array.isArray(data)) { // Unlikely but possible for scripts? Generally scripts are objects or under 'script' 
+              script = findScript(data, true);
+            } else {
+              script = findScript(data, false);
+            }
           }
 
           if (script) {
@@ -710,14 +784,34 @@ async function getAutomationOrScriptFromContent(content, identifier, type) {
   let item = null;
   const key = type === 'automation' ? 'automations' : 'scripts';
 
+  const findItem = (collection, isArray) => {
+    if (isArray) {
+      const found = collection.find(item => item && item.id === identifier);
+      if (found) return found;
+      if (!isNaN(parseInt(identifier))) {
+        return collection[parseInt(identifier)];
+      }
+    } else {
+      const found = Object.values(collection).find(item => item && item.id === identifier);
+      if (found) return found;
+      return collection[identifier];
+    }
+    return null;
+  };
+
   if (data[key]) {
     if (Array.isArray(data[key])) {
-      item = data[key][parseInt(identifier)];
+      item = findItem(data[key], true);
     } else {
-      item = data[key][identifier];
+      item = findItem(data[key], false);
     }
   } else {
-    item = data[identifier];
+    // Root
+    if (Array.isArray(data)) {
+      item = findItem(data, true);
+    } else {
+      item = findItem(data, false);
+    }
   }
   return item;
 }
@@ -741,43 +835,107 @@ export async function restoreAutomation(automationId, commitHash, configPath) {
 
     // 2. Get the restored automation object from the specified commit
     const committedFileContent = await gitShowFileAtCommit(commitHash, gitFilePath);
-    const restoredAutomation = await getAutomationOrScriptFromContent(committedFileContent, identifier, 'automation');
+
+    // Helper to find by ID or Key/Index (duplicated from getAutomationHistory to stay self-contained)
+    const findAutomation = (collection, isArray) => {
+      if (isArray) {
+        const found = collection.find(item => item && item.id === identifier);
+        if (found) return found;
+        if (!isNaN(parseInt(identifier))) {
+          return collection[parseInt(identifier)];
+        }
+      } else {
+        const found = Object.values(collection).find(item => item && item.id === identifier);
+        if (found) return found;
+        return collection[identifier];
+      }
+      return null;
+    };
+
+    const data = yaml.load(committedFileContent);
+    let restoredAutomation = null;
+    if (data) {
+      if (data.automations) {
+        restoredAutomation = findAutomation(data.automations, Array.isArray(data.automations));
+      } else {
+        restoredAutomation = findAutomation(data, Array.isArray(data));
+      }
+    }
 
     if (!restoredAutomation) {
       console.error(`[restoreAutomation] Could not find automation ${identifier} in commit ${commitHash} of file ${gitFilePath}`);
       return false;
     }
 
-    // 3. Get the current content of the file from disk
-    const currentFileContent = await fs.promises.readFile(fullPath, 'utf-8');
-    let currentData = yaml.load(currentFileContent);
-
-    if (!currentData) {
-      console.error(`[restoreAutomation] Could not parse current YAML content for file ${gitFilePath}`);
-      return false;
+    // 3. Get the current content of the file from disk (or create empty if new/deleted)
+    let currentFileContent = '';
+    try {
+      currentFileContent = await fs.promises.readFile(fullPath, 'utf-8');
+    } catch (e) {
+      // File might not exist (if it was deleted), we can try to recreate or error.
+      // For simple restore of an item into an existing system, assuming file exists is safer unless we implement full file restore.
+      // If file doesn't exist, we probably should create it with basic structure?
+      // Let's assume for now the file exists or user has to handle it. 
+      // But if it's the "deleted items" flow, the file itself might be deleted? 
+      // No, automations.yaml usually exists. If it's a split config file, it might be gone.
+      // If file is missing, initialize as empty object/array depending on type?
+      console.log(`[restoreAutomation] File ${fullPath} not found, initializing new`);
+      currentFileContent = '';
     }
 
-    // 4. Locate and add/replace the specific automation in the current data structure
-    const key = 'automations'; // Assuming automations are under 'automations' key or root
+    let currentData = yaml.load(currentFileContent) || (Array.isArray(data.automations || data) ? [] : {});
 
-    if (currentData[key]) {
-      if (Array.isArray(currentData[key])) {
-        // Replace by index for array-based automations
-        const index = parseInt(identifier);
-        if (index >= 0 && index < currentData[key].length) {
-          // Replace existing automation
-          currentData[key][index] = restoredAutomation;
-        } else {
-          // Index out of bounds - append the automation instead
-          currentData[key].push(restoredAutomation);
-        }
+    // 4. Locate and add/replace the specific automation in the current data structure
+    // We need to match where to put it. 
+    // If it's automations.yaml (root array), we append or replace.
+    // If it's split config, it depends on structure.
+
+    // Naive approach: try to find matching ID in current data to replace, else append.
+
+    // Determine container key
+    const key = data.automations ? 'automations' : null;
+    let targetContainer = key ? currentData[key] : currentData;
+
+    if (!targetContainer) {
+      // Initialize if missing
+      if (key) {
+        currentData[key] = [];
+        targetContainer = currentData[key];
       } else {
-        // Replace by key for object-based automations
-        currentData[key][identifier] = restoredAutomation;
+        // Root level, currentData is the container
+      }
+    }
+
+    if (Array.isArray(targetContainer)) {
+      // Array: find index of existing item with same ID
+      const existingIndex = targetContainer.findIndex(item => item.id === restoredAutomation.id || item.id === identifier); // Check both UUID and original identifier if it was UUID
+
+      if (existingIndex >= 0) {
+        targetContainer[existingIndex] = restoredAutomation;
+        console.log(`[restoreAutomation] Replaced existing automation at index ${existingIndex}`);
+      } else {
+        targetContainer.push(restoredAutomation);
+        console.log(`[restoreAutomation] Appended new automation`);
       }
     } else {
-      // Root-level automation
-      currentData[identifier] = restoredAutomation;
+      // Object: use identifier (or UUID) as key? 
+      // If restoredAutomation has an ID, use that as key? Or use the original key?
+      // In object format, key IS the ID usually.
+      // If identifier was UUID, we need a key. 
+      // If we found it via UUID, we don't know the original key unless we stored it?
+      // In getAutomationHistory we return 'automation' object. We didn't preserve the Key in the history object explicitly in getAutomationHistory return, 
+      // but extractAutomations stores it.
+      // For restore, we are getting `restoredAutomation` from YAML. 
+      // If object format, we need the Key. 
+      // Refactor of `findAutomation` to return { key, value } might be cleaner?
+      // uniqueId logic: auto.id || autoName.
+
+      // Let's rely on `identifier` being the key if it's not a UUID, or `restoredAutomation.alias` normalized?
+      // Fallback: use identifier.
+      // NOTE: If identifier is UUID, using it as key in `automations: { UUID: ... }` is valid but might not be user preference (usually slug).
+      // Use `restoredAutomation.id` or `identifier`.
+      const targetKey = restoredAutomation.id || identifier;
+      targetContainer[targetKey] = restoredAutomation;
     }
 
     // 5. Dump the modified data back to YAML
@@ -789,9 +947,10 @@ export async function restoreAutomation(automationId, commitHash, configPath) {
     });
 
     // 6. Write the updated YAML back to the file
+    // Ensure directory exists
+    await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.promises.writeFile(fullPath, updatedYaml);
     console.log(`[restoreAutomation] ✓ Automation '${identifier}' restored from ${commitDate}`);
-    console.log(`[restoreAutomation] ✓ File watcher will auto-commit this change`);
 
     return true;
   } catch (error) {
