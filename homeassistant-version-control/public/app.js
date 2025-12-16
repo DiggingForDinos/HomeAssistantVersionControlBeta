@@ -1289,7 +1289,7 @@ async function connectGitHub() {
       showNotification('Code copied to clipboard! Paste it on GitHub.', 'success', 4000);
     } catch (err) {
       console.warn('Clipboard write failed:', err);
-      showNotification('Could not auto-copy code. Please copy it manually.', 'warning', 4000);
+      // No notification on failure as per user request
     }
 
     // Start polling for token
