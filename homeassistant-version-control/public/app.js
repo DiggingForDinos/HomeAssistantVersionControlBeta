@@ -2973,10 +2973,6 @@ function displayAutomationHistory() {
   // Show the floating button when viewing automation history
   showFloatingConfirmRestoreButton();
 
-  if (currentSelection && currentSelection.type === 'deleted_automation') {
-    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreAutomationVersion('${escapeHtml(currentSelection.id)}')" title="${t('diff.tooltip_overwrite_automation')}">${t('timeline.restore_commit')}</button>`;
-  }
-
   // Load the initial version
   loadAutomationHistoryDiff();
 }
@@ -3057,6 +3053,12 @@ async function loadAutomationHistoryDiff() {
     startLineOffset: startLine,
     filePath: 'automations.yaml'
   });
+
+  if ((diffHtml) || (currentSelection && currentSelection.type === 'deleted_automation')) {
+    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreAutomationVersion('${escapeHtml(currentSelection.id)}')" title="${t('diff.tooltip_overwrite_automation')}">${t('timeline.restore_commit')}</button>`;
+  } else {
+    document.getElementById('rightPanelActions').innerHTML = '';
+  }
 }
 
 function navigateAutomationHistory(direction) {
@@ -3330,10 +3332,6 @@ function displayScriptHistory() {
   // Show the floating button when viewing script history
   showFloatingConfirmRestoreButton();
 
-  if (currentSelection && currentSelection.type === 'deleted_script') {
-    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreScriptVersion('${escapeHtml(currentSelection.id)}')" title="${t('diff.tooltip_overwrite_script')}">${t('timeline.restore_commit')}</button>`;
-  }
-
   // Load the initial version
   loadScriptHistoryDiff();
 }
@@ -3414,6 +3412,12 @@ async function loadScriptHistoryDiff() {
     startLineOffset: startLine,
     filePath: 'scripts.yaml'
   });
+
+  if ((diffHtml) || (currentSelection && currentSelection.type === 'deleted_script')) {
+    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreScriptVersion('${escapeHtml(currentSelection.id)}')" title="${t('diff.tooltip_overwrite_script')}">${t('timeline.restore_commit')}</button>`;
+  } else {
+    document.getElementById('rightPanelActions').innerHTML = '';
+  }
 }
 
 function navigateScriptHistory(direction) {
@@ -3628,10 +3632,6 @@ function displayFileHistory(filePath) {
   document.getElementById('rightPanelTitle').textContent = title;
   // document.getElementById('itemsSubtitle').textContent = `History (${currentFileHistory.length} versions with changes)`;
   document.getElementById('rightPanelActions').innerHTML = '';
-  if (currentSelection && currentSelection.type === 'deleted_file') {
-    const latestParams = `('${escapeHtml(filePath)}', '${currentFileHistory[0].hash}')`;
-    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreFile${latestParams}" title="${t('diff.tooltip_restore_file')}">${t('timeline.restore_commit')}</button>`;
-  }
 
   // Build the HTML for the right panel with navigation
   const html = `
@@ -3780,9 +3780,10 @@ async function loadFileHistoryDiff(filePath) {
     filePath: filePath
   });
 
-  // Show restore button if there are changes (regardless of comparison mode)
-  if (diffHtml && !isNewlyAdded) {
-    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreFileVersion('${filePath}')" title="${t('diff.tooltip_overwrite_file')}">${t('timeline.restore_commit')}</button>`;
+  // Show restore button if there are changes (regardless of comparison mode) or if it's a deleted file
+  const isDeletedFile = currentSelection && currentSelection.type === 'deleted_file';
+  if ((diffHtml && !isNewlyAdded) || isDeletedFile) {
+    document.getElementById('rightPanelActions').innerHTML = `<button class="btn restore" onclick="restoreFileVersion('${escapeHtml(filePath)}')" title="${t('diff.tooltip_overwrite_file')}">${t('timeline.restore_commit')}</button>`;
   } else {
     document.getElementById('rightPanelActions').innerHTML = '';
   }
