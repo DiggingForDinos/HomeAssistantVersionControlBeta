@@ -69,7 +69,9 @@
     "view_button": "View",
     "restore_button": "Restore",
     "restore_tooltip": "Restore this file to the version from this commit",
-    "folder_label": "Folder"
+    "folder_label": "Folder",
+    "deleted_empty_state": "No deleted files found",
+    "last_seen": "Last seen: {date}"
   },
   "automations": {
     "title": "Automations",
@@ -84,7 +86,9 @@
     "automation_restored": "{name} restored!",
     "automation_restored_reloaded": "{name} restored and reloaded successfully!",
     "automation_restore_error": "Error restoring automation: {error}",
-    "deleted_automation": "Deleted Automation"
+    "deleted_automation": "Deleted Automation",
+    "deleted_empty_state": "No deleted automations found",
+    "last_seen": "Last seen: {date}"
   },
   "scripts": {
     "title": "Scripts",
@@ -99,7 +103,9 @@
     "script_restored": "{name} restored!",
     "script_restored_reloaded": "{name} restored and reloaded successfully!",
     "script_restore_error": "Error restoring script: {error}",
-    "deleted_script": "Deleted Script"
+    "deleted_script": "Deleted Script",
+    "deleted_empty_state": "No deleted scripts found",
+    "last_seen": "Last seen: {date}"
   },
   "diff": {
     "title": "File Diff",
@@ -197,7 +203,8 @@
     "default": "Default",
     "name_asc": "Name (A-Z)",
     "name_desc": "Name (Z-A)",
-    "recently_modified": "Recently Modified"
+    "recently_modified": "Recently Modified",
+    "deleted": "Deleted"
   },
   "history": {
     "no_changes": "No changes found in history",

@@ -1326,6 +1326,14 @@ function handleSortChange(value) {
   sortState[currentMode] = value;
   localStorage.setItem(`sort_${currentMode}`, value);
 
+  // If 'deleted' is selected, load deleted items instead of sorting
+  if (value === 'deleted') {
+    if (currentMode === 'files') loadDeletedFiles();
+    else if (currentMode === 'automations') loadDeletedAutomations();
+    else if (currentMode === 'scripts') loadDeletedScripts();
+    return;
+  }
+
   // Reload current view to apply sort
   if (currentMode === 'files') loadFiles();
   else if (currentMode === 'automations') loadAutomations();
@@ -2244,6 +2252,167 @@ async function loadFiles() {
   } catch (error) {
     leftPanel.innerHTML = `<div class="error" data-i18n="files.error_loading">Error loading files: ${error.message}</div>`;
   }
+}
+
+// Load deleted files (files that exist in git history but not on disk)
+async function loadDeletedFiles() {
+  const leftPanel = document.getElementById('leftPanel');
+  leftPanel.innerHTML = `<div class="empty" data-i18n="app.loading">Loading...</div>`;
+
+  try {
+    const response = await fetch(`${API}/files/deleted`);
+    const data = await response.json();
+
+    if (data.success) {
+      displayDeletedFiles(data.files);
+    } else {
+      leftPanel.innerHTML = `<div class="error" data-i18n="files.error_loading">Error loading deleted files: ${data.error}</div>`;
+    }
+  } catch (error) {
+    leftPanel.innerHTML = `<div class="error" data-i18n="files.error_loading">Error loading deleted files: ${error.message}</div>`;
+  }
+}
+
+function displayDeletedFiles(files) {
+  const leftPanel = document.getElementById('leftPanel');
+
+  if (!files || files.length === 0) {
+    leftPanel.innerHTML = `<div class="empty" data-i18n="files.deleted_empty_state">${t('files.deleted_empty_state')}</div>`;
+    return;
+  }
+
+  leftPanel.innerHTML = files.map(file => {
+    const lastSeen = new Date(file.lastSeenDate).toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+    const fileId = 'deleted-file-' + file.path.replace(/[:/\.]/g, '-');
+    return `
+      <div class="file deleted" id="${fileId}" onclick="selectDeletedFile('${escapeHtml(file.path)}', '${file.lastSeenHash}')">
+        <div class="file-icon deleted-icon">🗑️</div>
+        <div class="file-path">
+          <div class="file-name">${escapeHtml(file.name)}</div>
+          <div class="file-path-text">${escapeHtml(file.path.replace(file.name, ''))}</div>
+          <div class="file-last-seen">${t('files.last_seen').replace('{date}', lastSeen)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('rightPanel').innerHTML = `<div class="empty">${t('files.select_file')}</div>`;
+}
+
+async function selectDeletedFile(filePath, lastSeenHash) {
+  // Load the file history for the deleted file
+  currentSelection = { type: 'deleted_file', path: filePath, hash: lastSeenHash };
+  await loadFileHistory(filePath);
+}
+
+// Load deleted automations (automations that exist in git history but not in current config)
+async function loadDeletedAutomations() {
+  const leftPanel = document.getElementById('leftPanel');
+  leftPanel.innerHTML = `<div class="empty" data-i18n="app.loading">Loading...</div>`;
+
+  try {
+    const response = await fetch(`${API}/automations/deleted`);
+    const data = await response.json();
+
+    if (data.success) {
+      displayDeletedAutomations(data.automations);
+    } else {
+      leftPanel.innerHTML = `<div class="error" data-i18n="automations.error_loading">Error loading deleted automations: ${data.error}</div>`;
+    }
+  } catch (error) {
+    leftPanel.innerHTML = `<div class="error" data-i18n="automations.error_loading">Error loading deleted automations: ${error.message}</div>`;
+  }
+}
+
+function displayDeletedAutomations(automations) {
+  const leftPanel = document.getElementById('leftPanel');
+
+  if (!automations || automations.length === 0) {
+    leftPanel.innerHTML = `<div class="empty" data-i18n="automations.deleted_empty_state">${t('automations.deleted_empty_state')}</div>`;
+    return;
+  }
+
+  leftPanel.innerHTML = automations.map(auto => {
+    const lastSeen = new Date(auto.lastSeenDate).toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+    // Create a synthetic ID for fetching history (using the file and identifier format)
+    const syntheticId = `automations:${encodeURIComponent(auto.file)}:${auto.id}`;
+    const autoId = 'deleted-auto-' + auto.id.replace(/[:/\.]/g, '-');
+    return `
+      <div class="file deleted" id="${autoId}" onclick="selectDeletedAutomation('${escapeHtml(syntheticId)}', '${escapeHtml(auto.name)}')">
+        <div class="file-icon deleted-icon">🗑️</div>
+        <div class="file-path">
+          <div class="file-name">${escapeHtml(auto.name)}</div>
+          <div class="file-path-text">${escapeHtml(auto.file)}</div>
+          <div class="file-last-seen">${t('automations.last_seen').replace('{date}', lastSeen)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('rightPanel').innerHTML = `<div class="empty">${t('automations.select_automation')}</div>`;
+}
+
+async function selectDeletedAutomation(automationId, name) {
+  currentSelection = { type: 'deleted_automation', id: automationId, name: name };
+  await loadAutomationHistory(automationId, name);
+}
+
+// Load deleted scripts (scripts that exist in git history but not in current config)
+async function loadDeletedScripts() {
+  const leftPanel = document.getElementById('leftPanel');
+  leftPanel.innerHTML = `<div class="empty" data-i18n="app.loading">Loading...</div>`;
+
+  try {
+    const response = await fetch(`${API}/scripts/deleted`);
+    const data = await response.json();
+
+    if (data.success) {
+      displayDeletedScripts(data.scripts);
+    } else {
+      leftPanel.innerHTML = `<div class="error" data-i18n="scripts.error_loading">Error loading deleted scripts: ${data.error}</div>`;
+    }
+  } catch (error) {
+    leftPanel.innerHTML = `<div class="error" data-i18n="scripts.error_loading">Error loading deleted scripts: ${error.message}</div>`;
+  }
+}
+
+function displayDeletedScripts(scripts) {
+  const leftPanel = document.getElementById('leftPanel');
+
+  if (!scripts || scripts.length === 0) {
+    leftPanel.innerHTML = `<div class="empty" data-i18n="scripts.deleted_empty_state">${t('scripts.deleted_empty_state')}</div>`;
+    return;
+  }
+
+  leftPanel.innerHTML = scripts.map(script => {
+    const lastSeen = new Date(script.lastSeenDate).toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric'
+    });
+    // Create a synthetic ID for fetching history
+    const syntheticId = `scripts:${encodeURIComponent(script.file)}:${script.id}`;
+    const scriptItemId = 'deleted-script-' + script.id.replace(/[:/\.]/g, '-');
+    return `
+      <div class="file deleted" id="${scriptItemId}" onclick="selectDeletedScript('${escapeHtml(syntheticId)}', '${escapeHtml(script.name)}')">
+        <div class="file-icon deleted-icon">🗑️</div>
+        <div class="file-path">
+          <div class="file-name">${escapeHtml(script.name)}</div>
+          <div class="file-path-text">${escapeHtml(script.file)}</div>
+          <div class="file-last-seen">${t('scripts.last_seen').replace('{date}', lastSeen)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('rightPanel').innerHTML = `<div class="empty">${t('scripts.select_script')}</div>`;
+}
+
+async function selectDeletedScript(scriptId, name) {
+  currentSelection = { type: 'deleted_script', id: scriptId, name: name };
+  await loadScriptHistory(scriptId, name);
 }
 
 function createFolderBreadcrumb(filePath) {

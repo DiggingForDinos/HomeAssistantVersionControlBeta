@@ -560,6 +560,30 @@ body {
   transform: translateX(2px);
 }
 
+/* === Deleted Items === */
+.file.deleted {
+  border-left: 3px solid var(--error, #ef4444);
+  opacity: 0.85;
+}
+
+.file.deleted:hover {
+  opacity: 1;
+}
+
+.file.deleted .file-name {
+  color: var(--text-secondary);
+}
+
+.file.deleted .deleted-icon {
+  opacity: 0.7;
+}
+
+.file-last-seen {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-style: italic;
+  margin-top: 2px;
+}
 
 /* === Breadcrumb === */
 .breadcrumb {

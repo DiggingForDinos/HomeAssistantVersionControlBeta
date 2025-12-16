@@ -40,7 +40,8 @@ import {
   getAutomationDiff,
   getScriptDiff,
   restoreAutomation,
-  restoreScript
+  restoreScript,
+  getConfigFilePaths
 } from './automation-parser.js';
 
 // Override console.log and console.error to add timestamps
@@ -335,7 +336,7 @@ let cleanupLock = false;
 
 // Helper function to ensure git is initialized
 function ensureGitInitialized() {
-  if (!git || !gitInitialized) {
+  if (!gitInitialized) {
     throw new Error('Git repository not initialized yet. Please try again in a moment.');
   }
 }
@@ -928,6 +929,208 @@ app.get('/api/files', async (req, res) => {
     const files = await walkDir(CONFIG_PATH);
     res.json({ success: true, files });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get deleted files (files that exist in git history but not on disk)
+app.get('/api/files/deleted', async (req, res) => {
+  try {
+    ensureGitInitialized();
+    console.log('[deleted-files] Scanning git history for deleted files...');
+
+    // Get all files currently on disk
+    const currentFiles = await getConfigFiles();
+    const currentFileSet = new Set(currentFiles);
+
+    // Get all files ever tracked in git history
+    // Use git log to find all files that were ever committed
+    const gitLogOutput = await gitRaw(['log', '--all', '--name-only', '--pretty=format:', '--diff-filter=ACMRD']);
+    const allHistoricalFiles = gitLogOutput
+      .split('\n')
+      .map(f => f.trim())
+      .filter(f => f && !f.startsWith('.git'));
+
+    // Get unique file paths from history
+    const historicalFileSet = new Set(allHistoricalFiles);
+
+    // Filter to only include configured extensions
+    const allowedExtensions = getConfiguredExtensions();
+    const deletedFiles = [];
+
+    for (const filePath of historicalFileSet) {
+      // Check if file matches allowed extensions or is lovelace file
+      const matchesExtension = allowedExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
+      const isLovelaceFile = filePath.startsWith('.storage/lovelace');
+
+      if ((matchesExtension || isLovelaceFile) && !currentFileSet.has(filePath)) {
+        // File was tracked but no longer exists - find when it was last seen
+        try {
+          const lastCommitOutput = await gitRaw(['log', '-1', '--format=%H|%aI|%s', '--', filePath]);
+          if (lastCommitOutput.trim()) {
+            const [hash, date, message] = lastCommitOutput.trim().split('|');
+            deletedFiles.push({
+              path: filePath,
+              name: path.basename(filePath),
+              lastSeenDate: date,
+              lastSeenHash: hash,
+              lastSeenMessage: message
+            });
+          }
+        } catch (e) {
+          // File might not have proper history, skip it
+          console.log(`[deleted-files] Could not get history for ${filePath}:`, e.message);
+        }
+      }
+    }
+
+    // Sort by last seen date (most recent first)
+    deletedFiles.sort((a, b) => new Date(b.lastSeenDate) - new Date(a.lastSeenDate));
+
+    console.log(`[deleted-files] Found ${deletedFiles.length} deleted files`);
+    res.json({ success: true, files: deletedFiles });
+  } catch (error) {
+    console.error('[deleted-files] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get deleted automations (automations that exist in git history but not in current config)
+app.get('/api/automations/deleted', async (req, res) => {
+  try {
+    ensureGitInitialized();
+    console.log('[deleted-automations] Scanning git history for deleted automations...');
+
+    // Get current automations
+    const currentAutomations = await extractAutomations(CONFIG_PATH);
+    const currentAutomationIds = new Set(currentAutomations.map(a => a.id));
+
+    // Get all commits that touched automation files
+    const { automationPaths } = await getConfigFilePaths(CONFIG_PATH);
+    const allAutomationIds = new Map(); // id -> { name, file, lastSeenDate, lastSeenHash }
+
+    // Scan each automation file's history
+    for (const filePath of automationPaths) {
+      const relPath = path.relative(CONFIG_PATH, filePath);
+      try {
+        // Get commit history for this file
+        const logOutput = await gitRaw(['log', '--format=%H|%aI', '--', relPath]);
+        const commits = logOutput.trim().split('\n').filter(l => l);
+
+        for (const commitLine of commits.slice(0, 50)) { // Limit to 50 commits per file for performance
+          const [hash, date] = commitLine.split('|');
+          try {
+            // Get file content at this commit
+            const content = await gitShowFileAtCommit(hash, relPath);
+            if (content) {
+              // Parse YAML to find automation IDs
+              const parsed = yaml.load(content);
+              const automations = Array.isArray(parsed) ? parsed : [];
+
+              for (const auto of automations) {
+                const id = auto.id || auto.alias;
+                if (id && !currentAutomationIds.has(id)) {
+                  // This is a deleted automation - track it if we haven't seen it yet
+                  // or if this commit is newer
+                  const existing = allAutomationIds.get(id);
+                  if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
+                    allAutomationIds.set(id, {
+                      id,
+                      name: auto.alias || id,
+                      file: relPath,
+                      lastSeenDate: date,
+                      lastSeenHash: hash
+                    });
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Skip commits where file/parsing fails
+          }
+        }
+      } catch (e) {
+        console.log(`[deleted-automations] Error scanning ${relPath}:`, e.message);
+      }
+    }
+
+    // Convert to array and sort by last seen date
+    const deletedAutomations = Array.from(allAutomationIds.values());
+    deletedAutomations.sort((a, b) => new Date(b.lastSeenDate) - new Date(a.lastSeenDate));
+
+    console.log(`[deleted-automations] Found ${deletedAutomations.length} deleted automations`);
+    res.json({ success: true, automations: deletedAutomations });
+  } catch (error) {
+    console.error('[deleted-automations] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get deleted scripts (scripts that exist in git history but not in current config)
+app.get('/api/scripts/deleted', async (req, res) => {
+  try {
+    ensureGitInitialized();
+    console.log('[deleted-scripts] Scanning git history for deleted scripts...');
+
+    // Get current scripts
+    const currentScripts = await extractScripts(CONFIG_PATH);
+    const currentScriptIds = new Set(currentScripts.map(s => s.id));
+
+    // Get all commits that touched script files
+    const { scriptPaths } = await getConfigFilePaths(CONFIG_PATH);
+    const allScriptIds = new Map(); // id -> { name, file, lastSeenDate, lastSeenHash }
+
+    // Scan each script file's history
+    for (const filePath of scriptPaths) {
+      const relPath = path.relative(CONFIG_PATH, filePath);
+      try {
+        // Get commit history for this file
+        const logOutput = await gitRaw(['log', '--format=%H|%aI', '--', relPath]);
+        const commits = logOutput.trim().split('\n').filter(l => l);
+
+        for (const commitLine of commits.slice(0, 50)) { // Limit to 50 commits per file for performance
+          const [hash, date] = commitLine.split('|');
+          try {
+            // Get file content at this commit
+            const content = await gitShowFileAtCommit(hash, relPath);
+            if (content) {
+              // Parse YAML to find script IDs
+              const parsed = yaml.load(content);
+              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                for (const [scriptId, scriptConfig] of Object.entries(parsed)) {
+                  if (scriptId && !currentScriptIds.has(scriptId)) {
+                    // This is a deleted script - track it if we haven't seen it yet
+                    const existing = allScriptIds.get(scriptId);
+                    if (!existing || new Date(date) > new Date(existing.lastSeenDate)) {
+                      allScriptIds.set(scriptId, {
+                        id: scriptId,
+                        name: scriptConfig?.alias || scriptId,
+                        file: relPath,
+                        lastSeenDate: date,
+                        lastSeenHash: hash
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Skip commits where file/parsing fails
+          }
+        }
+      } catch (e) {
+        console.log(`[deleted-scripts] Error scanning ${relPath}:`, e.message);
+      }
+    }
+
+    // Convert to array and sort by last seen date
+    const deletedScripts = Array.from(allScriptIds.values());
+    deletedScripts.sort((a, b) => new Date(b.lastSeenDate) - new Date(a.lastSeenDate));
+
+    console.log(`[deleted-scripts] Found ${deletedScripts.length} deleted scripts`);
+    res.json({ success: true, scripts: deletedScripts });
+  } catch (error) {
+    console.error('[deleted-scripts] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -23,7 +23,7 @@ const BASE_DIR = __dirname;
  * @param {string} configPath - Path to the config directory
  * @returns {Object} Object with automationPaths and scriptPaths arrays
  */
-async function getConfigFilePaths(configPath) {
+export async function getConfigFilePaths(configPath) {
   console.log('[getConfigFilePaths] Looking for configuration.yaml in:', configPath);
   const configFile = path.join(configPath, 'configuration.yaml');
   const automationPaths = [];
