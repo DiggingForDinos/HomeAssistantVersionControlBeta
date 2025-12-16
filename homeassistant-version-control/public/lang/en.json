@@ -198,7 +198,12 @@
     "cloud_exclude_secrets_desc": "Recommended: Keep secrets.yaml out of remote repository",
     "cloud_test_connection": "Test Connection",
     "cloud_push_now": "Push Now",
-    "cloud_last_push": "Last push:"
+    "cloud_last_push": "Last push:",
+    "cloud_github_account": "GitHub Account",
+    "cloud_connect_github": "Connect GitHub",
+    "cloud_github_enter_code": "Enter this code at:",
+    "cloud_github_waiting": "Waiting for authorization...",
+    "cloud_disconnect": "Disconnect"
   },
   "date_buckets": {
     "today": "Today",

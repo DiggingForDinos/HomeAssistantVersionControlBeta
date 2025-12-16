@@ -366,8 +366,9 @@
                 <span style="color: var(--text-primary); font-size: 14px;"
                   data-i18n="settings.cloud_sync_enabled">Enable Cloud Sync</span>
                 <div class="toggle-switch">
-                  <input type="checkbox" id="cloudSyncEnabled" style="display: none;">
-                  <label for="cloudSyncEnabled" class="toggle-slider" onclick="handleCloudSyncToggle()"></label>
+                  <input type="checkbox" id="cloudSyncEnabled" style="display: none;"
+                    onchange="handleCloudSyncToggle()">
+                  <label for="cloudSyncEnabled" class="toggle-slider"></label>
                 </div>
               </label>
             </div>
@@ -394,26 +395,57 @@
                 </p>
               </div>
 
+              <!-- GitHub Connection -->
               <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 8px;">
                   <span style="color: var(--text-primary); font-size: 14px;"
-                    data-i18n="settings.cloud_auth_token">Access Token</span>
+                    data-i18n="settings.cloud_github_account">GitHub Account</span>
                 </label>
-                <input type="password" id="cloudAuthToken" placeholder="ghp_xxxx or personal access token" style="
-                  width: 100%;
-                  padding: 10px 12px;
-                  background: var(--bg-tertiary);
-                  border: 1px solid var(--border-subtle);
-                  border-radius: var(--radius-md);
-                  color: var(--text-primary);
-                  font-size: 14px;
-                  box-sizing: border-box;
-                ">
-                <p style="color: var(--text-secondary); font-size: 12px; margin-top: 6px; margin-left: 2px;"
-                  data-i18n="settings.cloud_auth_token_desc">
-                  Create a personal access token with repo permissions
-                </p>
+
+                <!-- Not Connected State -->
+                <div id="githubNotConnected">
+                  <button class="btn" onclick="connectGitHub()"
+                    style="width: 100%; background: #24292e; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <svg height="20" width="20" viewBox="0 0 16 16" fill="white">
+                      <path
+                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                    </svg>
+                    <span data-i18n="settings.cloud_connect_github">Connect GitHub</span>
+                  </button>
+                </div>
+
+                <!-- Connecting State (Device Flow) -->
+                <div id="githubConnecting"
+                  style="display: none; text-align: center; padding: 16px; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+                  <p style="color: var(--text-primary); margin: 0 0 12px 0;"
+                    data-i18n="settings.cloud_github_enter_code">Enter this code at:</p>
+                  <a href="https://github.com/login/device" target="_blank"
+                    style="color: var(--primary); font-size: 14px;">github.com/login/device</a>
+                  <div id="githubUserCode"
+                    style="font-size: 28px; font-weight: bold; letter-spacing: 4px; margin: 16px 0; color: var(--primary); font-family: monospace;">
+                  </div>
+                  <p style="color: var(--text-secondary); font-size: 12px; margin: 0;"
+                    data-i18n="settings.cloud_github_waiting">Waiting for authorization...</p>
+                  <button class="btn" onclick="cancelGitHubConnect()"
+                    style="margin-top: 12px; background: var(--bg-secondary);" data-i18n="app.cancel">Cancel</button>
+                </div>
+
+                <!-- Connected State -->
+                <div id="githubConnected"
+                  style="display: none; padding: 12px; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <img id="githubAvatar" src="" alt="" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div style="flex: 1;">
+                      <div id="githubUsername" style="color: var(--text-primary); font-weight: 500;"></div>
+                      <div style="color: var(--success); font-size: 12px;">✓ Connected</div>
+                    </div>
+                    <button class="btn" onclick="disconnectGitHub()"
+                      style="background: var(--danger); padding: 6px 12px; font-size: 12px;"
+                      data-i18n="settings.cloud_disconnect">Disconnect</button>
+                  </div>
+                </div>
               </div>
+
 
               <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 8px;">

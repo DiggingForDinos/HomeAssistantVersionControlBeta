@@ -1122,6 +1122,9 @@ async function loadCloudSyncSettings() {
 
       // Update status
       updateCloudSyncStatus(settings);
+
+      // Load GitHub user info if connected
+      loadGitHubUser();
     }
   } catch (error) {
     console.error('Failed to load cloud sync settings:', error);
@@ -1132,7 +1135,6 @@ async function saveCloudSyncSettings() {
   try {
     const enabled = document.getElementById('cloudSyncEnabled').checked;
     const remoteUrl = document.getElementById('cloudRemoteUrl').value.trim();
-    const authToken = document.getElementById('cloudAuthToken').value.trim();
     const pushFrequency = document.getElementById('cloudPushFrequency').value;
     const excludeSecrets = document.getElementById('cloudExcludeSecrets').checked;
 
@@ -1142,7 +1144,6 @@ async function saveCloudSyncSettings() {
       body: JSON.stringify({
         enabled,
         remoteUrl,
-        authToken: authToken || undefined, // Only send if provided
         pushFrequency,
         excludeSecrets
       })
@@ -1163,7 +1164,6 @@ async function saveCloudSyncSettings() {
 
 async function testCloudConnection() {
   const remoteUrl = document.getElementById('cloudRemoteUrl').value.trim();
-  const authToken = document.getElementById('cloudAuthToken').value.trim();
 
   if (!remoteUrl) {
     showNotification('Please enter a repository URL', 'error', 3000);
@@ -1176,7 +1176,7 @@ async function testCloudConnection() {
     const response = await fetch(`${API}/cloud-sync/test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ remoteUrl, authToken })
+      body: JSON.stringify({ remoteUrl })
     });
 
     const data = await response.json();
@@ -1243,6 +1243,156 @@ function updateCloudSyncStatus(settings) {
     }
   } else {
     statusDiv.style.display = 'none';
+  }
+}
+
+// =====================================
+// GitHub OAuth Device Flow
+// =====================================
+
+let githubPollInterval = null;
+
+async function connectGitHub() {
+  try {
+    // Show connecting state
+    document.getElementById('githubNotConnected').style.display = 'none';
+    document.getElementById('githubConnecting').style.display = 'block';
+    document.getElementById('githubConnected').style.display = 'none';
+
+    // Initiate device flow
+    const response = await fetch(`${API}/github/device-flow/initiate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      showNotification(`GitHub auth failed: ${data.error}`, 'error', 5000);
+      cancelGitHubConnect();
+      return;
+    }
+
+    // Show the user code
+    document.getElementById('githubUserCode').textContent = data.user_code;
+
+    // Open GitHub in new tab
+    window.open(data.verification_uri, '_blank');
+
+    // Start polling for token
+    const pollInterval = (data.interval || 5) * 1000; // GitHub specifies interval in seconds
+    let attempts = 0;
+    const maxAttempts = Math.ceil(data.expires_in / (data.interval || 5));
+
+    githubPollInterval = setInterval(async () => {
+      attempts++;
+
+      if (attempts > maxAttempts) {
+        clearInterval(githubPollInterval);
+        showNotification('Authorization timed out', 'error', 5000);
+        cancelGitHubConnect();
+        return;
+      }
+
+      try {
+        const pollResponse = await fetch(`${API}/github/device-flow/poll`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_code: data.device_code })
+        });
+
+        const pollData = await pollResponse.json();
+
+        if (pollData.success) {
+          // Got the token!
+          clearInterval(githubPollInterval);
+          showNotification('GitHub connected successfully!', 'success', 3000);
+          await loadGitHubUser();
+          return;
+        }
+
+        if (pollData.expired) {
+          clearInterval(githubPollInterval);
+          showNotification('Code expired. Please try again.', 'error', 5000);
+          cancelGitHubConnect();
+          return;
+        }
+
+        if (pollData.denied) {
+          clearInterval(githubPollInterval);
+          showNotification('Access denied', 'error', 5000);
+          cancelGitHubConnect();
+          return;
+        }
+
+        // Still pending - continue polling
+      } catch (error) {
+        console.error('Poll error:', error);
+      }
+    }, pollInterval);
+
+  } catch (error) {
+    console.error('GitHub connect error:', error);
+    showNotification(`Error: ${error.message}`, 'error', 5000);
+    cancelGitHubConnect();
+  }
+}
+
+function cancelGitHubConnect() {
+  if (githubPollInterval) {
+    clearInterval(githubPollInterval);
+    githubPollInterval = null;
+  }
+
+  document.getElementById('githubNotConnected').style.display = 'block';
+  document.getElementById('githubConnecting').style.display = 'none';
+  document.getElementById('githubConnected').style.display = 'none';
+}
+
+async function loadGitHubUser() {
+  try {
+    const response = await fetch(`${API}/github/user`);
+    const data = await response.json();
+
+    if (data.success && data.user) {
+      document.getElementById('githubNotConnected').style.display = 'none';
+      document.getElementById('githubConnecting').style.display = 'none';
+      document.getElementById('githubConnected').style.display = 'block';
+
+      document.getElementById('githubAvatar').src = data.user.avatar_url;
+      document.getElementById('githubUsername').textContent = data.user.name || data.user.login;
+    } else {
+      // Not connected
+      document.getElementById('githubNotConnected').style.display = 'block';
+      document.getElementById('githubConnecting').style.display = 'none';
+      document.getElementById('githubConnected').style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Failed to load GitHub user:', error);
+    document.getElementById('githubNotConnected').style.display = 'block';
+    document.getElementById('githubConnecting').style.display = 'none';
+    document.getElementById('githubConnected').style.display = 'none';
+  }
+}
+
+async function disconnectGitHub() {
+  try {
+    const response = await fetch(`${API}/github/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('GitHub disconnected', 'info', 3000);
+      document.getElementById('githubNotConnected').style.display = 'block';
+      document.getElementById('githubConnecting').style.display = 'none';
+      document.getElementById('githubConnected').style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Disconnect error:', error);
+    showNotification(`Error: ${error.message}`, 'error', 5000);
   }
 }
 

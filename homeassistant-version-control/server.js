@@ -3001,6 +3001,168 @@ async function testRemoteConnection() {
 }
 
 // =====================================
+// GitHub OAuth Device Flow
+// =====================================
+
+const GITHUB_CLIENT_ID = 'Ov23liWFHGMcCmLWFseP';
+
+// Initiate GitHub Device Flow
+app.post('/api/github/device-flow/initiate', async (req, res) => {
+  try {
+    const response = await fetch('https://github.com/login/device/code', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        client_id: GITHUB_CLIENT_ID,
+        scope: 'repo'
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('[github device flow] Error:', data.error_description);
+      return res.status(400).json({ success: false, error: data.error_description });
+    }
+
+    console.log('[github device flow] Initiated, user_code:', data.user_code);
+
+    res.json({
+      success: true,
+      device_code: data.device_code,
+      user_code: data.user_code,
+      verification_uri: data.verification_uri,
+      expires_in: data.expires_in,
+      interval: data.interval
+    });
+  } catch (error) {
+    console.error('[github device flow] Initiate error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Poll for GitHub Device Flow token
+app.post('/api/github/device-flow/poll', async (req, res) => {
+  try {
+    const { device_code } = req.body;
+
+    if (!device_code) {
+      return res.status(400).json({ success: false, error: 'device_code is required' });
+    }
+
+    const response = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        client_id: GITHUB_CLIENT_ID,
+        device_code: device_code,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      // These are expected states during polling
+      if (data.error === 'authorization_pending') {
+        return res.json({ success: false, pending: true, error: 'Authorization pending' });
+      }
+      if (data.error === 'slow_down') {
+        return res.json({ success: false, slow_down: true, error: 'Slow down' });
+      }
+      if (data.error === 'expired_token') {
+        return res.json({ success: false, expired: true, error: 'Code expired' });
+      }
+      if (data.error === 'access_denied') {
+        return res.json({ success: false, denied: true, error: 'Access denied by user' });
+      }
+
+      console.error('[github device flow] Poll error:', data.error_description);
+      return res.status(400).json({ success: false, error: data.error_description || data.error });
+    }
+
+    if (data.access_token) {
+      console.log('[github device flow] Token received successfully');
+
+      // Save the token to cloud sync settings
+      runtimeSettings.cloudSync.authToken = data.access_token;
+      runtimeSettings.cloudSync.authProvider = 'github';
+      await saveRuntimeSettings();
+
+      res.json({
+        success: true,
+        access_token: data.access_token,
+        token_type: data.token_type,
+        scope: data.scope
+      });
+    } else {
+      res.json({ success: false, error: 'No access token in response' });
+    }
+  } catch (error) {
+    console.error('[github device flow] Poll error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get GitHub user info (to show who's connected)
+app.get('/api/github/user', async (req, res) => {
+  try {
+    const token = runtimeSettings.cloudSync.authToken;
+
+    if (!token) {
+      return res.json({ success: false, error: 'Not authenticated' });
+    }
+
+    const response = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'HomeAssistantVersionControl'
+      }
+    });
+
+    if (!response.ok) {
+      return res.json({ success: false, error: 'Invalid token' });
+    }
+
+    const user = await response.json();
+
+    res.json({
+      success: true,
+      user: {
+        login: user.login,
+        avatar_url: user.avatar_url,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    console.error('[github user] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Disconnect GitHub (clear token)
+app.post('/api/github/disconnect', async (req, res) => {
+  try {
+    runtimeSettings.cloudSync.authToken = '';
+    runtimeSettings.cloudSync.authProvider = '';
+    await saveRuntimeSettings();
+
+    console.log('[github] Disconnected');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[github disconnect] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================
 // Cloud Sync API Endpoints
 // =====================================
 
@@ -3030,8 +3192,11 @@ app.post('/api/cloud-sync/test', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Remote URL is required' });
     }
 
+    // Use provided token or fall back to stored token
+    const token = authToken || runtimeSettings.cloudSync.authToken;
+
     // Set up the remote with provided credentials
-    const setupResult = await setupGitRemote(remoteUrl, authToken);
+    const setupResult = await setupGitRemote(remoteUrl, token);
     if (!setupResult.success) {
       return res.json({ success: false, error: setupResult.error });
     }
