@@ -1092,7 +1092,7 @@ function handleCloudSyncToggle() {
 
 async function loadCloudSyncSettings() {
   try {
-    const response = await fetch(`${API}/cloud-sync/settings`);
+    const response = await fetch('/api/settings/cloud');
     const data = await response.json();
 
     if (data.success) {
@@ -1103,6 +1103,23 @@ async function loadCloudSyncSettings() {
       if (enabledCheckbox) {
         enabledCheckbox.checked = settings.enabled;
         handleCloudSyncToggle();
+      }
+
+      // Determine provider from settings
+      // If authProvider is github, or if remoteUrl is empty, default to github
+      // If authProvider is generic, or if we have a remoteUrl and authProvider is strictly NOT github, default to custom
+      const isGithub = settings.authProvider === 'github' || (!settings.authProvider && !settings.remoteUrl);
+
+      const providerGithub = document.getElementById('cloudProviderGithub');
+      const providerCustom = document.getElementById('cloudProviderCustom');
+
+      if (providerGithub && providerCustom) {
+        providerGithub.checked = isGithub;
+        providerCustom.checked = !isGithub;
+        // Trigger UI update
+        if (typeof handleCloudProviderChange === 'function') {
+          handleCloudProviderChange();
+        }
       }
 
       const remoteUrlInput = document.getElementById('cloudRemoteUrl');
@@ -1123,8 +1140,10 @@ async function loadCloudSyncSettings() {
       // Update status
       updateCloudSyncStatus(settings);
 
-      // Load GitHub user info if connected
-      loadGitHubUser();
+      // Load GitHub user info if connected/relevant
+      if (isGithub) {
+        loadGitHubUser();
+      }
     }
   } catch (error) {
     console.error('Failed to load cloud sync settings:', error);
@@ -1132,33 +1151,58 @@ async function loadCloudSyncSettings() {
 }
 
 async function saveCloudSyncSettings() {
-  try {
-    const enabled = document.getElementById('cloudSyncEnabled').checked;
-    const remoteUrl = document.getElementById('cloudRemoteUrl').value.trim();
-    const pushFrequency = document.getElementById('cloudPushFrequency').value;
-    const includeSecrets = document.getElementById('cloudIncludeSecrets').checked;
+  const enabled = document.getElementById('cloudSyncEnabled').checked;
+  const isGithub = document.getElementById('cloudProviderGithub').checked;
+  let remoteUrl = '';
+  let authProvider = '';
 
-    const response = await fetch(`${API}/cloud-sync/settings`, {
+  if (isGithub) {
+    // For GitHub, we typically don't change the URL manually here, it's set by create-repo
+    // But we might want to preserve what was there if we authorized
+    // Actually, usually we don't save remoteUrl from input for GitHub mode
+    // We expect the user to use the connect flow.
+    // So we assume the current validation is managed by the connect flow.
+    // Wait, the previous code DID save remoteUrl from the hidden input.
+    remoteUrl = document.getElementById('cloudRemoteUrl').value;
+    authProvider = 'github';
+  } else {
+    // Custom mode
+    remoteUrl = document.getElementById('cloudRemoteUrl').value;
+    authProvider = 'generic';
+    if (!remoteUrl) {
+      showToast(getTranslation('settings.cloud_remote_url_error'), 'error');
+      return;
+    }
+  }
+
+  const pushFrequency = document.getElementById('cloudPushFrequency').value;
+  const includeSecrets = document.getElementById('cloudIncludeSecrets').checked;
+
+  try {
+    const response = await fetch('/api/settings/cloud', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         enabled,
-        remoteUrl,
+        remoteUrl, // Send the URL (might be empty for GitHub if not set yet)
         pushFrequency,
-        includeSecrets
+        includeSecrets,
+        authProvider // Send explicit provider choice
       })
     });
 
     const data = await response.json();
     if (data.success) {
-      console.log('Cloud sync settings saved');
+      showToast(getTranslation('settings.saved'), 'success');
+      loadRuntimeSettings(); // Reload to refresh state
     } else {
-      console.error('Failed to save cloud sync settings:', data.error);
+      showToast(getTranslation('settings.error_saving') + ': ' + data.error, 'error');
     }
-    return data;
   } catch (error) {
-    console.error('Error saving cloud sync settings:', error);
-    return { success: false, error: error.message };
+    console.error('Error saving cloud settings:', error);
+    showToast(getTranslation('settings.error_saving'), 'error');
   }
 }
 
@@ -6520,4 +6564,18 @@ function applyHolidayDesign() {
       transform: translateX(18px);
     }
   `;
+}
+
+function handleCloudProviderChange() {
+  const isGithub = document.getElementById('cloudProviderGithub').checked;
+  const githubSection = document.getElementById('githubConfigSection');
+  const customSection = document.getElementById('customConfigSection');
+
+  if (isGithub) {
+    githubSection.style.display = 'block';
+    customSection.style.display = 'none';
+  } else {
+    githubSection.style.display = 'none';
+    customSection.style.display = 'block';
+  }
 }
