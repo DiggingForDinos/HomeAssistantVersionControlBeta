@@ -2771,8 +2771,26 @@ async function showAutomationHistory(automationId) {
 
     if (data.success && data.history.length > 0) {
       // Get the current automation content for comparison
-      const auto = allAutomations.find(a => a.id === automationId);
-      const currentContent = dumpYaml(auto.content);
+      let auto = allAutomations.find(a => a.id === automationId);
+      let currentContent = '';
+
+      // Handle deleted automations (which won't be found in allAutomations)
+      if (!auto && currentSelection && currentSelection.type === 'deleted_automation') {
+        // Parse the synthetic ID: automations:FILE:ID
+        const parts = automationId.split(':');
+        const file = parts.length >= 2 ? decodeURIComponent(parts[1]) : 'automations.yaml';
+
+        auto = {
+          id: automationId,
+          name: currentSelection.name,
+          file: file,
+          content: null // No current content
+        };
+      }
+
+      if (auto && auto.content) {
+        currentContent = dumpYaml(auto.content);
+      }
 
       // Initialize with empty history
       currentAutomationHistory = [];
@@ -2953,10 +2971,14 @@ async function loadAutomationHistoryDiff() {
   document.getElementById('autoPrevBtn').disabled = currentAutomationHistoryIndex === 0;
   document.getElementById('autoNextBtn').disabled = currentAutomationHistoryIndex === currentAutomationHistory.length - 1;
 
-  const auto = allAutomations.find(a => a.id === currentSelection.id);
+  // Handle deleted automations (which won't be found in allAutomations)
+  if (!auto && currentSelection && currentSelection.type === 'deleted_automation') {
+    auto = { content: null, line: 0 };
+  }
+
   if (!auto) return;
 
-  const currentContent = dumpYaml(auto.content);
+  const currentContent = auto.content ? dumpYaml(auto.content) : '';
   let leftContent = '';
   let rightContent = '';
   let leftLabel = '';
@@ -2964,13 +2986,20 @@ async function loadAutomationHistoryDiff() {
 
   if (compareToCurrent) {
     // Compare to Current ON: Compare current version (left) vs commit version (right)
-    // Note: renderDiff swaps args, so we pass (right, left)
     const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
 
-    leftContent = currentContent;
-    rightContent = commitContent;
-    leftLabel = 'Current Version';
-    rightLabel = formatDateForBanner(currentCommit.date);
+    // For deleted automations, we want to show a single panel view of the historical content
+    if (currentSelection.type === 'deleted_automation') {
+      leftContent = commitContent;
+      rightContent = commitContent;
+      leftLabel = formatDateForBanner(currentCommit.date);
+      rightLabel = 'Content';
+    } else {
+      leftContent = currentContent;
+      rightContent = commitContent;
+      leftLabel = 'Current Version';
+      rightLabel = formatDateForBanner(currentCommit.date);
+    }
   } else {
     // Compare to Current OFF: Compare parent (left) vs commit (right)
     const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.automation);
@@ -3089,8 +3118,25 @@ async function showScriptHistory(scriptId) {
 
     if (data.success && data.history.length > 0) {
       // Get the current script content for comparison
-      const script = allScripts.find(s => s.id === scriptId);
-      const currentContent = dumpYaml(script.content);
+      let script = allScripts.find(s => s.id === scriptId);
+      let currentContent = '';
+
+      // Handle deleted scripts
+      if (!script && currentSelection && currentSelection.type === 'deleted_script') {
+        // Parse ID
+        const parts = scriptId.split(':');
+        const file = parts.length >= 2 ? decodeURIComponent(parts[1]) : 'scripts.yaml';
+        script = {
+          id: scriptId,
+          name: currentSelection.name,
+          file: file,
+          content: null
+        };
+      }
+
+      if (script && script.content) {
+        currentContent = dumpYaml(script.content);
+      }
 
       // Initialize with empty history
       currentScriptHistory = [];
@@ -3271,10 +3317,16 @@ async function loadScriptHistoryDiff() {
   document.getElementById('scriptPrevBtn').disabled = currentScriptHistoryIndex === 0;
   document.getElementById('scriptNextBtn').disabled = currentScriptHistoryIndex === currentScriptHistory.length - 1;
 
-  const script = allScripts.find(s => s.id === currentSelection.id);
+  let script = allScripts.find(s => s.id === currentSelection.id);
+
+  // Handle deleted scripts
+  if (!script && currentSelection && currentSelection.type === 'deleted_script') {
+    script = { content: null, line: 0 };
+  }
+
   if (!script) return;
 
-  const currentContent = dumpYaml(script.content);
+  const currentContent = script.content ? dumpYaml(script.content) : '';
   let leftContent = '';
   let rightContent = '';
   let leftLabel = '';
@@ -3284,10 +3336,18 @@ async function loadScriptHistoryDiff() {
     // Compare to Current ON: Compare current version (left) vs commit version (right)
     const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
 
-    leftContent = currentContent;
-    rightContent = commitContent;
-    leftLabel = 'Current Version';
-    rightLabel = formatDateForBanner(currentCommit.date);
+    // For deleted scripts, we want to show a single panel view of the historical content
+    if (currentSelection.type === 'deleted_script') {
+      leftContent = commitContent;
+      rightContent = commitContent;
+      leftLabel = formatDateForBanner(currentCommit.date);
+      rightLabel = 'Content';
+    } else {
+      leftContent = currentContent;
+      rightContent = commitContent;
+      leftLabel = 'Current Version';
+      rightLabel = formatDateForBanner(currentCommit.date);
+    }
   } else {
     // Compare to Current OFF: Compare parent (left) vs commit (right)
     const commitContent = currentCommit.yamlContent || dumpYaml(currentCommit.script);
@@ -3621,10 +3681,13 @@ async function loadFileHistoryDiff(filePath) {
       const commitData = await commitResponse.json();
       const commitContent = commitData.success ? commitData.content : '';
 
+      // For deleted files, we want to show a single panel view of the historical content
+      // To achieve this, we set rightContent to be the same as leftContent.
+      // This causes generateDiff to see no changes and render a single panel using the left label.
       leftContent = commitContent;
-      rightContent = '';
+      rightContent = commitContent;
       leftLabel = formatDateForBanner(currentCommit.date);
-      rightLabel = 'File No Longer Exists';
+      rightLabel = 'File Content';
     } else if (isNewlyAdded) {
       // For newly added files, show the content as no-change diff
       leftContent = currentContent;
