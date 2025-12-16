@@ -2300,7 +2300,6 @@ function displayDeletedFiles(files) {
     const fileId = 'deleted-file-' + file.path.replace(/[:/\.]/g, '-');
     return `
       <div class="file deleted" id="${fileId}" onclick="selectDeletedFile('${escapeHtml(file.path)}', '${file.lastSeenHash}')">
-        <div class="file-icon deleted-icon">🗑️</div>
         <div class="file-path">
           <div class="file-name">${escapeHtml(file.name)}</div>
           <div class="file-path-text">${escapeHtml(file.path.replace(file.name, ''))}</div>
@@ -2355,7 +2354,6 @@ function displayDeletedAutomations(automations) {
     const autoId = 'deleted-auto-' + auto.id.replace(/[:/\.]/g, '-');
     return `
       <div class="file deleted" id="${autoId}" onclick="selectDeletedAutomation('${escapeHtml(syntheticId)}', '${escapeHtml(auto.name)}')">
-        <div class="file-icon deleted-icon">🗑️</div>
         <div class="file-path">
           <div class="file-name">${escapeHtml(auto.name)}</div>
           <div class="file-path-text">${escapeHtml(auto.file)}</div>
@@ -2409,7 +2407,6 @@ function displayDeletedScripts(scripts) {
     const scriptItemId = 'deleted-script-' + script.id.replace(/[:/\.]/g, '-');
     return `
       <div class="file deleted" id="${scriptItemId}" onclick="selectDeletedScript('${escapeHtml(syntheticId)}', '${escapeHtml(script.name)}')">
-        <div class="file-icon deleted-icon">🗑️</div>
         <div class="file-path">
           <div class="file-name">${escapeHtml(script.name)}</div>
           <div class="file-path-text">${escapeHtml(script.file)}</div>
@@ -2545,7 +2542,14 @@ function displayFileList(files) {
 
 async function showFileHistory(filePath) {
   document.querySelectorAll('.file').forEach(f => f.classList.remove('selected'));
-  const fileId = 'file-' + filePath.replace(/\//g, '-').replace(/\./g, '-');
+
+  let fileId;
+  if (sortState.files === 'deleted') {
+    fileId = 'deleted-file-' + filePath.replace(/[:/\.]/g, '-');
+  } else {
+    fileId = 'file-' + filePath.replace(/\//g, '-').replace(/\./g, '-');
+  }
+
   const element = document.getElementById(fileId);
   if (element) {
     element.classList.add('selected');
@@ -2760,7 +2764,14 @@ function displayAutomations(automations) {
 
 async function showAutomationHistory(automationId) {
   document.querySelectorAll('.file').forEach(f => f.classList.remove('selected'));
-  const autoId = 'auto-' + automationId.replace(/[:/]/g, '-');
+
+  let autoId;
+  if (sortState.automations === 'deleted') {
+    autoId = 'deleted-auto-' + automationId.replace(/[:/\.]/g, '-');
+  } else {
+    autoId = 'auto-' + automationId.replace(/[:/]/g, '-');
+  }
+
   const element = document.getElementById(autoId);
   if (element) {
     element.classList.add('selected');
@@ -3107,7 +3118,14 @@ function displayScripts(scripts) {
 
 async function showScriptHistory(scriptId) {
   document.querySelectorAll('.file').forEach(f => f.classList.remove('selected'));
-  const scriptElId = 'script-' + scriptId.replace(/[:/]/g, '-');
+
+  let scriptElId;
+  if (sortState.scripts === 'deleted') {
+    scriptElId = 'deleted-script-' + scriptId.replace(/[:/\.]/g, '-');
+  } else {
+    scriptElId = 'script-' + scriptId.replace(/[:/]/g, '-');
+  }
+
   const element = document.getElementById(scriptElId);
   if (element) {
     element.classList.add('selected');
