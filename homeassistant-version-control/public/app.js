@@ -2548,7 +2548,12 @@ async function showFileHistory(filePath) {
     }
   }
 
-  currentSelection = { type: 'file', file: filePath };
+  // Preserve 'deleted_file' type if already set, otherwise set as regular file
+  if (currentSelection && currentSelection.type === 'deleted_file') {
+    currentSelection.file = filePath;
+  } else {
+    currentSelection = { type: 'file', file: filePath };
+  }
 
   try {
     // First get the current file content
@@ -3511,9 +3516,11 @@ function displayFileHistory(filePath) {
     return;
   }
 
-  // Set the panel title - add "(Added)" if the file was added
+  // Set the panel title - add "(Deleted)" if viewing a deleted file, or "(Added)" if the file was added
   let title = filePath;
-  if (currentFileHistory.length > 0) {
+  if (currentSelection && currentSelection.type === 'deleted_file') {
+    title += ' (Deleted)';
+  } else if (currentFileHistory.length > 0) {
     // Check if the oldest commit shows this file was added
     const oldestCommit = currentFileHistory[currentFileHistory.length - 1];
     if (oldestCommit && oldestCommit.status === 'A') {
@@ -3605,7 +3612,20 @@ async function loadFileHistoryDiff(filePath) {
     const currentContentData = await currentContentResponse.json();
     const currentContent = currentContentData.success ? currentContentData.content : '';
 
-    if (isNewlyAdded) {
+    // Check if this is a deleted file
+    const isDeletedFile = currentSelection && currentSelection.type === 'deleted_file';
+
+    if (isDeletedFile) {
+      // For deleted files, show the historical version content and indicate the file no longer exists
+      const commitResponse = await fetch(`${API}/git/file-at-commit?filePath=${encodeURIComponent(filePath)}&commitHash=${currentCommit.hash}`);
+      const commitData = await commitResponse.json();
+      const commitContent = commitData.success ? commitData.content : '';
+
+      leftContent = commitContent;
+      rightContent = '';
+      leftLabel = formatDateForBanner(currentCommit.date);
+      rightLabel = 'File No Longer Exists';
+    } else if (isNewlyAdded) {
       // For newly added files, show the content as no-change diff
       leftContent = currentContent;
       rightContent = currentContent;
