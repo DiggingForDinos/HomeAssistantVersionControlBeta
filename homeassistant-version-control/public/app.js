@@ -1056,16 +1056,33 @@ async function saveSettings() {
   }
 
   // Save cloud sync settings
-  await saveCloudSyncSettings();
+  const cloudSaveSuccess = await saveCloudSyncSettings();
+
+  // If cloud settings failed (e.g. validation error), don't close modal
+  if (cloudSaveSuccess === false) {
+    return;
+  }
 
   // Re-render current view to apply changes immediately
-  refreshCurrentView();
+  try {
+    refreshCurrentView();
+  } catch (e) {
+    console.error('Error refreshing view:', e);
+  }
 
   // Settings saved - close modal
-  closeSettings();
+  try {
+    closeSettings();
+  } catch (e) {
+    console.error('Error closing settings modal:', e);
+  }
 
   // Update UI state based on new settings
-  handleRetentionToggle();
+  try {
+    handleRetentionToggle();
+  } catch (e) {
+    console.error('Error updating UI state:', e);
+  }
 }
 
 function handleRetentionToggle() {
@@ -1092,7 +1109,7 @@ function handleCloudSyncToggle() {
 
 async function loadCloudSyncSettings() {
   try {
-    const response = await fetch('/api/settings/cloud');
+    const response = await fetch('/api/cloud-sync/settings');
     const data = await response.json();
 
     if (data.success) {
@@ -1170,8 +1187,8 @@ async function saveCloudSyncSettings() {
     remoteUrl = document.getElementById('cloudRemoteUrl').value;
     authProvider = 'generic';
     if (!remoteUrl) {
-      showToast(getTranslation('settings.cloud_remote_url_error'), 'error');
-      return;
+      showNotification('Please enter a remote URL', 'error');
+      return false;
     }
   }
 
@@ -1179,7 +1196,7 @@ async function saveCloudSyncSettings() {
   const includeSecrets = document.getElementById('cloudIncludeSecrets').checked;
 
   try {
-    const response = await fetch('/api/settings/cloud', {
+    const response = await fetch('/api/cloud-sync/settings', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1195,14 +1212,17 @@ async function saveCloudSyncSettings() {
 
     const data = await response.json();
     if (data.success) {
-      showToast(getTranslation('settings.saved'), 'success');
-      loadRuntimeSettings(); // Reload to refresh state
+      showNotification('Settings saved', 'success');
+      // Don't reload settings here - let the caller handle any needed refreshes
+      return true;
     } else {
-      showToast(getTranslation('settings.error_saving') + ': ' + data.error, 'error');
+      showNotification('Error saving settings: ' + data.error, 'error');
+      return false;
     }
   } catch (error) {
     console.error('Error saving cloud settings:', error);
-    showToast(getTranslation('settings.error_saving'), 'error');
+    showNotification('Error saving settings', 'error');
+    return false;
   }
 }
 
@@ -1238,19 +1258,32 @@ async function testCloudConnection() {
 }
 
 async function pushToCloudNow() {
+  console.log('[pushToCloudNow] Starting...');
   showNotification('Pushing to cloud...', 'info', 2000);
 
   // Save current settings first
-  await saveCloudSyncSettings();
+  console.log('[pushToCloudNow] Calling saveCloudSyncSettings...');
+  const saveSuccess = await saveCloudSyncSettings();
+  console.log('[pushToCloudNow] saveCloudSyncSettings returned:', saveSuccess);
 
+  if (saveSuccess === false) {
+    console.log('[pushToCloudNow] Save failed, aborting push');
+    return;
+  }
+
+  console.log('[pushToCloudNow] Proceeding to push...');
   try {
-    const response = await fetch(`${API}/cloud-sync/push`, {
+    const pushUrl = `${API}/cloud-sync/push`;
+    console.log('[pushToCloudNow] Fetching:', pushUrl);
+    const response = await fetch(pushUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ force: true }) // Allow push even if not enabled
     });
 
+    console.log('[pushToCloudNow] Response status:', response.status);
     const data = await response.json();
+    console.log('[pushToCloudNow] Response data:', data);
 
     if (data.success) {
       showNotification('Push successful!', 'success', 3000);
@@ -1260,6 +1293,7 @@ async function pushToCloudNow() {
       showNotification(`Push failed: ${data.error}`, 'error', 5000);
     }
   } catch (error) {
+    console.error('[pushToCloudNow] Error:', error);
     showNotification(`Push error: ${error.message}`, 'error', 5000);
   }
 }

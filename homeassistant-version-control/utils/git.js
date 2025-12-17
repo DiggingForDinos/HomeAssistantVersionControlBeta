@@ -19,9 +19,11 @@ export async function gitExec(args, options = {}) {
         windowsHide: true
     };
 
-    if (env) {
-        execOptions.env = env;
-    }
+    execOptions.env = {
+        GIT_TERMINAL_PROMPT: '0',
+        ...process.env,
+        ...(env || {})
+    };
 
     return execFileAsync('git', args, execOptions);
 }
