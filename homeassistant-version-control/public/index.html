@@ -465,8 +465,16 @@
                       data-i18n="settings.cloud_github_enter_code">Enter this code at:</p>
                     <a href="https://github.com/login/device" target="_blank"
                       style="color: var(--primary); font-size: 14px;">github.com/login/device</a>
-                    <div id="githubUserCode"
-                      style="font-size: 28px; font-weight: bold; letter-spacing: 4px; margin: 16px 0; color: var(--primary); font-family: monospace;">
+                    <div id="githubUserCodeWrapper" onclick="copyGitHubCode()"
+                      style="cursor: pointer; margin: 16px 0; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 2px dashed var(--primary); transition: all 0.2s ease;"
+                      onmouseover="this.style.borderStyle='solid'; this.style.transform='scale(1.02)'"
+                      onmouseout="this.style.borderStyle='dashed'; this.style.transform='scale(1)'">
+                      <div id="githubUserCode"
+                        style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: var(--primary); font-family: monospace;">
+                      </div>
+                      <div style="color: var(--text-secondary); font-size: 11px; margin-top: 8px;">
+                        👆 Tap to copy
+                      </div>
                     </div>
                     <p style="color: var(--text-secondary); font-size: 12px; margin: 0;"
                       data-i18n="settings.cloud_github_waiting">Waiting for authorization...</p>

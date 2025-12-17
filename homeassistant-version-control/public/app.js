@@ -55,6 +55,41 @@ const diffStyleOptions = [
   { id: 'style-8', name: 'Split Highlight', description: 'Word-level emphasis' }
 ];
 
+// Cross-browser clipboard helper (Safari doesn't support navigator.clipboard after async operations)
+async function copyToClipboard(text) {
+  // Try modern clipboard API first
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      // Fall through to fallback
+    }
+  }
+
+  // Fallback for Safari and older browsers
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-9999px';
+  textArea.style.top = '-9999px';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (successful) {
+      return true;
+    }
+    throw new Error('execCommand copy failed');
+  } catch (err) {
+    document.body.removeChild(textArea);
+    throw err;
+  }
+}
+
 // Diff view format management
 let diffViewFormat = localStorage.getItem('diffViewFormat') || 'split';
 
@@ -1349,13 +1384,14 @@ async function connectGitHub() {
     // Show the user code
     document.getElementById('githubUserCode').textContent = data.user_code;
 
-    // Auto-copy to clipboard
+    // Auto-copy to clipboard (with Safari fallback)
     try {
-      await navigator.clipboard.writeText(data.user_code);
+      await copyToClipboard(data.user_code);
       showNotification('Code copied to clipboard! Paste it on GitHub.', 'success', 4000);
     } catch (err) {
       console.warn('Clipboard write failed:', err);
-      // No notification on failure as per user request
+      // Show the code prominently so user can manually copy
+      showNotification(`Copy this code: ${data.user_code}`, 'info', 10000);
     }
 
     // Start polling for token
@@ -1455,6 +1491,36 @@ function cancelGitHubConnect() {
   document.getElementById('githubNotConnected').style.display = 'block';
   document.getElementById('githubConnecting').style.display = 'none';
   document.getElementById('githubConnected').style.display = 'none';
+}
+
+// Copy GitHub code on tap - works in Safari Web Apps since it's a direct user gesture
+async function copyGitHubCode() {
+  const codeElement = document.getElementById('githubUserCode');
+  const code = codeElement?.textContent?.trim();
+
+  if (!code) {
+    showNotification('No code to copy', 'error', 2000);
+    return;
+  }
+
+  try {
+    await copyToClipboard(code);
+    showNotification('Code copied! Paste it on GitHub.', 'success', 3000);
+
+    // Visual feedback
+    const wrapper = document.getElementById('githubUserCodeWrapper');
+    if (wrapper) {
+      wrapper.style.borderColor = 'var(--success)';
+      wrapper.style.background = 'rgba(16, 185, 129, 0.1)';
+      setTimeout(() => {
+        wrapper.style.borderColor = 'var(--primary)';
+        wrapper.style.background = 'var(--bg-secondary)';
+      }, 1000);
+    }
+  } catch (err) {
+    console.error('Copy failed:', err);
+    showNotification('Copy failed - please select and copy manually', 'error', 4000);
+  }
 }
 
 async function loadGitHubUser() {
