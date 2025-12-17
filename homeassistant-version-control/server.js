@@ -476,8 +476,6 @@ async function loadRuntimeSettings() {
     }
 
     const settingsData = await fsPromises.readFile(settingsPath, 'utf-8');
-    console.log('[init] Raw settings data loaded:', settingsData);
-
     const settings = JSON.parse(settingsData);
     runtimeSettings = { ...runtimeSettings, ...settings };
 
@@ -492,10 +490,10 @@ async function loadRuntimeSettings() {
       };
     }
 
-    console.log('[init] Merged runtime settings:', JSON.stringify(runtimeSettings, null, 2));
+    console.log('[init] Runtime settings loaded');
   } catch (error) {
     console.error('[init] Error loading runtime settings:', error);
-    console.log('[init] using default runtime settings');
+    console.log('[init] Using default runtime settings');
   }
 }
 
@@ -506,14 +504,9 @@ async function saveRuntimeSettings() {
   try {
     const settingsPath = '/data/runtime-settings.json';
     console.log(`[settings] Saving settings to ${settingsPath}...`);
-    console.log('[settings] Content:', JSON.stringify(runtimeSettings, null, 2));
 
     await fsPromises.writeFile(settingsPath, JSON.stringify(runtimeSettings, null, 2), 'utf-8');
     console.log('[settings] Successfully saved runtime settings');
-
-    // Verify write by reading stats
-    const stats = await fsPromises.stat(settingsPath);
-    console.log(`[settings] File stats: size=${stats.size}, mtime=${stats.mtime}`);
   } catch (error) {
     console.error('[settings] Failed to save runtime settings:', error);
     // Don't throw, just log, so we don't crash requests
