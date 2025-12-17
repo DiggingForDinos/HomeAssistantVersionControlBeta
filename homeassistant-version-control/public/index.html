@@ -538,18 +538,22 @@
                 </p>
               </div>
 
-              <!-- Cloud Sync Status & Action Bar -->
-              <div id="cloudSyncStatus"
-                style="padding: 12px 14px; background: var(--bg-tertiary); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
-                <div style="color: var(--text-secondary); font-size: 13px;">
-                  <span data-i18n="settings.cloud_last_push">Last push:</span>
-                  <span id="cloudLastPushTime" style="color: var(--text-primary);">Never</span>
-                  <span id="cloudLastPushStatus"></span>
+              <!-- Push to Cloud - styled as inline setting item -->
+              <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <span style="color: var(--text-primary); font-size: 14px;"
+                    data-i18n="settings.cloud_push_to_cloud">Push to Cloud</span>
+                  <p id="cloudSyncStatus"
+                    style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; margin-bottom: 0;">
+                    <span data-i18n="settings.cloud_last_push">Last push:</span>
+                    <span id="cloudLastPushTime">Never</span>
+                    <span id="cloudLastPushStatus"></span>
+                  </p>
                 </div>
                 <button onclick="pushToCloudNow()"
-                  style="padding: 6px 14px; background: transparent; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; cursor: pointer; transition: all 0.2s ease;"
-                  onmouseover="this.style.background='var(--bg-secondary)'; this.style.borderColor='var(--accent)'"
-                  onmouseout="this.style.background='transparent'; this.style.borderColor='var(--border-subtle)'"
+                  style="padding: 8px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap;"
+                  onmouseover="this.style.background='var(--bg-secondary)'; this.style.borderColor='var(--text-secondary)'"
+                  onmouseout="this.style.background='var(--bg-tertiary)'; this.style.borderColor='var(--border-subtle)'"
                   data-i18n="settings.cloud_push_now">
                   Push Now
                 </button>
