@@ -1247,7 +1247,7 @@ async function saveCloudSyncSettings(silent = false) {
 
     const data = await response.json();
     if (data.success) {
-      if (!silent) showNotification('Settings saved', 'success');
+      if (!silent && false) showNotification('Settings saved', 'success');
       // Don't reload settings here - let the caller handle any needed refreshes
       return true;
     } else {

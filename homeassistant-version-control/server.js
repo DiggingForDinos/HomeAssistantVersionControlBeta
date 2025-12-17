@@ -2976,12 +2976,14 @@ async function configureSecretsTracking(include) {
     }
 
     let gitignoreChanged = false;
+    // console.log('[debug] Desired .gitignore:\n', desiredGitignoreContent);
+    // console.log('[debug] Current .gitignore:\n', currentGitignoreContent);
     if (desiredGitignoreContent.trim() !== currentGitignoreContent.trim()) {
       await fsPromises.writeFile(gitignorePath, desiredGitignoreContent);
       gitignoreChanged = true;
       console.log(`[cloud-sync] Updated .gitignore (secrets included: ${include})`);
     } else {
-      console.log('[cloud-sync] .gitignore is up to date');
+      console.log('[cloud-sync] .gitignore is up to date. No changes needed.');
     }
 
     // 2. Manage Git Index (Tracked/Untracked)
@@ -3427,6 +3429,11 @@ app.post('/api/cloud-sync/settings', async (req, res) => {
     if (remoteUrl && enabled) {
       await setupGitRemote(remoteUrl, authToken || runtimeSettings.cloudSync.authToken);
     }
+
+    // Apply secrets tracking configuration immediately
+    console.log('[debug] Saving settings. includeSecrets:', includeSecrets);
+    console.log('[debug] Current runtimeSettings includeSecrets:', runtimeSettings.cloudSync.includeSecrets);
+    await configureSecretsTracking(runtimeSettings.cloudSync.includeSecrets);
 
     await saveRuntimeSettings();
     res.json({ success: true, settings: runtimeSettings.cloudSync });
