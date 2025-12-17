@@ -12,8 +12,6 @@ Home Assistant Version Control provides complete version history for your setup.
 
 ## What's New
 - **Cloud Backup:** Push your configuration to a private GitHub or Gitea repository.
-- **Smart Commit Messages:** Automatically generates descriptive commit messages based on changed files.
-- **Visual Diffs:** See exactly what changed before you commit.
 * **Recover Deleted Items:** View and restore files, automations, and scripts that have been deleted. Look for the "Deleted" option in the sort menu.
 * **Progressive History Loading:** Versions now load faster, displaying results as they're found.
 
