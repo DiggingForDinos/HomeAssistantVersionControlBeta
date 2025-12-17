@@ -164,8 +164,9 @@ The add-on automatically tracks configuration files while ignoring system files.
 | Tracked ✅ | Ignored ❌ |
 | :--- | :--- |
 | `configuration.yaml` | Database files (`.db`, `.db-shm`) |
-| `automations.yaml`, `scripts.yaml` | Log files (`*.log`) |
-| `secrets.yaml` | Python cache (`__pycache__`) |
+| `automations.yaml`, `scripts.yaml` | `secrets.yaml` (default) |
+| Lovelace dashboards (`.storage/lovelace*`) | Log files (`*.log`) |
+| `esphome/*.yaml` | Python cache (`__pycache__`) |
 | Lovelace dashboards (`.storage/lovelace*`) | Binary files (Images, Videos) |
 | `esphome/*.yaml` | Temporary files |
 | All other `.yaml` and `.yml` files | |
