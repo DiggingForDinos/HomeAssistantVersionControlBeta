@@ -38,7 +38,6 @@ Home Assistant Version Control provides complete version history for your setup.
 ### Cloud Backup
 *Every change synced to the cloud.* Push your configuration to GitHub, GitLab, or Gitea for secure off-site storage.
 * **Automatic Sync:** Choose to push after every commit, hourly, daily, or manually.
-* **Secrets Protection:** Optionally exclude `secrets.yaml` from remote pushes to keep sensitive data local.
 * **Clean History:** Uses force push to keep your remote repository in sync with local history.
 
 ### Customization
