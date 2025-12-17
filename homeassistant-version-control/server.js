@@ -3003,8 +3003,7 @@ async function pushToRemote(includeSecrets = false) {
     // Always push to 'main' on remote (standard default branch)
     const remoteBranch = 'main';
     console.log(`[cloud-sync] Pushing ${localBranch} to origin/${remoteBranch}...`);
-    const pushOutput = await gitExec(['push', '-f', '-u', 'origin', `${localBranch}:${remoteBranch}`]);
-    console.log(`[cloud-sync] Push output:`, pushOutput);
+    await gitExec(['push', '-f', '-u', 'origin', `${localBranch}:${remoteBranch}`]);
     console.log(`[cloud-sync] Successfully pushed to origin/${remoteBranch}`);
 
     // Update status
@@ -3328,34 +3327,26 @@ app.post('/api/cloud-sync/test', async (req, res) => {
 
 // Push to remote now
 app.post('/api/cloud-sync/push', async (req, res) => {
-  console.log('[cloud-sync push] Push endpoint called with body:', JSON.stringify(req.body));
   try {
     if (!runtimeSettings.cloudSync.enabled && !req.body.force) {
-      console.log('[cloud-sync push] Rejected: Cloud sync is not enabled and force=false');
       return res.status(400).json({ success: false, error: 'Cloud sync is not enabled' });
     }
 
-    // Ensure remote is configured
     if (!runtimeSettings.cloudSync.remoteUrl) {
-      console.log('[cloud-sync push] Rejected: No remote URL configured');
       return res.status(400).json({ success: false, error: 'Remote URL not configured' });
     }
 
-    console.log('[cloud-sync push] Setting up remote...');
     // Set up remote (in case settings changed)
     const setupResult = await setupGitRemote(
       runtimeSettings.cloudSync.remoteUrl,
       runtimeSettings.cloudSync.authToken
     );
     if (!setupResult.success) {
-      console.log('[cloud-sync push] Remote setup failed:', setupResult.error);
       return res.json({ success: false, error: setupResult.error });
     }
 
-    console.log('[cloud-sync push] Executing push...');
     // Push
     const pushResult = await pushToRemote(runtimeSettings.cloudSync.includeSecrets);
-    console.log('[cloud-sync push] Push result:', JSON.stringify(pushResult));
     res.json(pushResult);
   } catch (error) {
     console.error('[cloud-sync push] Error:', error);

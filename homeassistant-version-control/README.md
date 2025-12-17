@@ -11,7 +11,7 @@ Home Assistant Version Control provides complete version history for your setup.
 ---
 
 ## What's New
-* **Cloud Backup:** Push your configuration to GitHub, GitLab, or Gitea for off-site backup. Supports automatic push after each commit, hourly, or daily schedules. Optionally exclude secrets.yaml from remote.
+* **Cloud Backup:** Push your configuration to GitHub, GitLab, or Gitea for off-site backup. Supports automatic push after each commit, hourly, or daily schedules.
 * **Recover Deleted Items:** View and restore files, automations, and scripts that have been deleted. Look for the "Deleted" option in the sort menu.
 * **Progressive History Loading:** Versions now load faster, displaying results as they're found.
 
@@ -185,6 +185,8 @@ API for advanced users or automation.
 | `POST` | `/api/restore-file` | **Restore File:** Restore a single file to a specific commit. |
 | `POST` | `/api/git/hard-reset` | **Hard Reset:** Reset the repository to a specific commit (destructive). |
 | `POST` | `/api/ha/restart` | **Restart HA:** Triggers a Home Assistant restart. |
+| `POST` | `/api/cloud-sync/push` | **Cloud Push:** Push to remote repository immediately. |
+| `GET` | `/api/cloud-sync/status` | **Cloud Status:** Get current cloud sync status and last push time. |
 | `GET` | `/api/git/history` | **Get History:** Returns the full commit history log. |
 | `GET` | `/api/git/file-diff` | **File Comparison:** Get the diff for a specific file in a commit. |
 | `GET` | `/api/git/commit-diff` | **Commit Comparison:** Get the full diff for a specific commit. |
@@ -248,6 +250,19 @@ Run the history retention cleanup process with custom parameters.
 curl -X POST http://homeassistant.local:54001/api/retention/cleanup \
   -H "Content-Type: application/json" \
   -d '{"hours": 24}'
+```
+
+#### `POST /api/cloud-sync/push`
+Push to the configured remote repository immediately. Useful for triggering cloud backups from automations.
+
+**Parameters:**
+*   `force` (boolean, optional): If `true`, push even if cloud sync is disabled. Default: `false`.
+
+**Example:**
+```bash
+curl -X POST http://homeassistant.local:54001/api/cloud-sync/push \
+  -H "Content-Type: application/json" \
+  -d '{"force": true}'
 ```
 
 ---
