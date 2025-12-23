@@ -1243,16 +1243,17 @@ async function saveCloudSyncSettings(silent = false) {
   let authProvider = '';
 
   if (isGithub) {
-    // For GitHub, we typically don't change the URL manually here, it's set by create-repo
-    // But we might want to preserve what was there if we authorized
-    // Actually, usually we don't save remoteUrl from input for GitHub mode
-    // We expect the user to use the connect flow.
-    // So we assume the current validation is managed by the connect flow.
-    // Wait, the previous code DID save remoteUrl from the hidden input.
-    remoteUrl = document.getElementById('cloudRemoteUrl').value;
+    // For GitHub mode, DON'T send the hidden input URL - it might be a Custom URL
+    // Let the backend use the stored GitHub URL instead
+    // Only exception: if the hidden input has a github.com URL, we can send it
+    const inputUrl = document.getElementById('cloudRemoteUrl').value || '';
+    if (inputUrl.includes('github.com')) {
+      remoteUrl = inputUrl;
+    }
+    // Otherwise leave remoteUrl empty - backend will use stored githubRemoteUrl
     authProvider = 'github';
   } else {
-    // Custom mode
+    // Custom mode - use the URL from the input
     remoteUrl = document.getElementById('cloudRemoteUrl').value;
     authProvider = 'generic';
     if (!remoteUrl) {

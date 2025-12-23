@@ -3533,6 +3533,16 @@ app.post('/api/cloud-sync/settings', async (req, res) => {
         // Restore stored GitHub URL
         effectiveUrl = runtimeSettings.cloudSync.githubRemoteUrl;
         console.log('[cloud-sync settings] Restored GitHub URL:', effectiveUrl);
+      } else {
+        // Fallback: check if current remoteUrl is a GitHub URL (migration case)
+        const currentUrl = runtimeSettings.cloudSync.remoteUrl || '';
+        if (currentUrl.includes('github.com')) {
+          effectiveUrl = currentUrl;
+          runtimeSettings.cloudSync.githubRemoteUrl = currentUrl;
+          console.log('[cloud-sync settings] Migrated GitHub URL from remoteUrl:', effectiveUrl);
+        } else {
+          console.log('[cloud-sync settings] No GitHub URL found - user needs to connect GitHub');
+        }
       }
     } else if (newProvider === 'generic') {
       // Switching to Custom - use provided URL or stored custom URL
@@ -3544,6 +3554,14 @@ app.post('/api/cloud-sync/settings', async (req, res) => {
         // Restore stored custom URL
         effectiveUrl = runtimeSettings.cloudSync.customRemoteUrl;
         console.log('[cloud-sync settings] Restored Custom URL:', effectiveUrl);
+      } else {
+        // Fallback: check if current remoteUrl is NOT a GitHub URL
+        const currentUrl = runtimeSettings.cloudSync.remoteUrl || '';
+        if (currentUrl && !currentUrl.includes('github.com')) {
+          effectiveUrl = currentUrl;
+          runtimeSettings.cloudSync.customRemoteUrl = currentUrl;
+          console.log('[cloud-sync settings] Migrated Custom URL from remoteUrl:', effectiveUrl);
+        }
       }
     }
 
