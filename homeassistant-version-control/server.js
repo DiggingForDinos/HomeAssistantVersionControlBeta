@@ -3499,7 +3499,7 @@ app.post('/api/cloud-sync/push', async (req, res) => {
 app.post('/api/cloud-sync/settings', async (req, res) => {
   try {
     console.log('[cloud-sync settings] Received request:', JSON.stringify(req.body, null, 2));
-    const { enabled, remoteUrl, authToken, pushFrequency, includeSecrets } = req.body;
+    const { enabled, remoteUrl, authToken, pushFrequency, includeSecrets, authProvider } = req.body;
 
     // Update settings
     console.log('[cloud-sync settings] Updating local settings...');
@@ -3508,6 +3508,7 @@ app.post('/api/cloud-sync/settings', async (req, res) => {
     if (authToken !== undefined) runtimeSettings.cloudSync.authToken = authToken;
     if (pushFrequency !== undefined) runtimeSettings.cloudSync.pushFrequency = pushFrequency;
     if (includeSecrets !== undefined) runtimeSettings.cloudSync.includeSecrets = includeSecrets;
+    if (authProvider !== undefined) runtimeSettings.cloudSync.authProvider = authProvider;
 
     // Set up remote if URL and token provided
     if (remoteUrl && enabled) {
