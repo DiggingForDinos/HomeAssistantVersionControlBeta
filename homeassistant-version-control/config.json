@@ -1,6 +1,6 @@
 {
   "name": "Home Assistant Version Control Beta",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "slug": "home-assistant-version-control-beta",
   "description": "Git-powered version control and automated backup for your Home Assistant configuration files",
   "url": "https://github.com/diggingfordinos/HomeAssistantVersionControlBeta",
@@ -25,7 +25,8 @@
   },
   "map": [
     "config:rw",
-    "ssl"
+    "ssl",
+    "data:rw"
   ],
   "environment": {
     "CONFIG_PATH": "/config"

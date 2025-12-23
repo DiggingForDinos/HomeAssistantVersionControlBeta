@@ -2668,7 +2668,7 @@ const server = app.listen(PORT, HOST, (err) => {
   }
 
   console.log('='.repeat(60));
-  console.log('Home Assistant Version Control v1.0.0');
+  console.log('Home Assistant Version Control v1.0.3');
   console.log('='.repeat(60));
   console.log(`Server running at http://${HOST}:${PORT}`);
 
