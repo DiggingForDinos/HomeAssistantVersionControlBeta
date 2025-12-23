@@ -6696,10 +6696,11 @@ function applyHolidayDesign() {
   `;
 }
 
-function handleCloudProviderChange() {
+async function handleCloudProviderChange() {
   const isGithub = document.getElementById('cloudProviderGithub').checked;
   const githubSection = document.getElementById('githubConfigSection');
   const customSection = document.getElementById('customConfigSection');
+  const urlInput = document.getElementById('cloudRemoteUrl');
 
   if (isGithub) {
     githubSection.style.display = 'block';
@@ -6707,5 +6708,16 @@ function handleCloudProviderChange() {
   } else {
     githubSection.style.display = 'none';
     customSection.style.display = 'block';
+
+    // When switching to Custom, restore the stored Custom URL
+    try {
+      const response = await fetch('/api/cloud-sync/settings');
+      const data = await response.json();
+      if (data.success && data.settings.customRemoteUrl && urlInput) {
+        urlInput.value = data.settings.customRemoteUrl;
+      }
+    } catch (e) {
+      console.log('[handleCloudProviderChange] Could not fetch custom URL:', e);
+    }
   }
 }
