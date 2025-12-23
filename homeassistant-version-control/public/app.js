@@ -1250,7 +1250,8 @@ async function loadCloudSyncSettings() {
             if (repoLink) {
               const cleanUrl = stripTokenFromUrl(settings.customRemoteUrl);
               const parts = cleanUrl.replace(/\.git$/, '').split('/').filter(p => p);
-              const repoName = parts.length >= 2 ? parts.slice(-2).join('/') : parts.pop() || 'Repository';
+              // Show User/Owner (2nd to last part) or fallback to Repo Name (last part)
+              const repoName = parts.length >= 2 ? parts[parts.length - 2] : (parts.pop() || 'Repository');
               repoLink.textContent = repoName;
               repoLink.href = cleanUrl.replace(/\.git$/, '');
             }
@@ -1402,7 +1403,8 @@ async function testCustomConnection() {
         // Strip token and extract repo name from URL
         const cleanUrl = stripTokenFromUrl(remoteUrl);
         const parts = cleanUrl.replace(/\.git$/, '').split('/').filter(p => p);
-        const repoName = parts.length >= 2 ? parts.slice(-2).join('/') : parts.pop() || 'Repository';
+        // Show User/Owner (2nd to last part) or fallback to Repo Name (last part)
+        const repoName = parts.length >= 2 ? parts[parts.length - 2] : (parts.pop() || 'Repository');
         repoLink.textContent = repoName;
         repoLink.href = cleanUrl.replace(/\.git$/, '');
       }
@@ -6820,7 +6822,8 @@ async function handleCloudProviderChange() {
           if (repoLink) {
             const cleanUrl = stripTokenFromUrl(data.settings.customRemoteUrl);
             const parts = cleanUrl.replace(/\.git$/, '').split('/').filter(p => p);
-            const repoName = parts.length >= 2 ? parts.slice(-2).join('/') : parts.pop() || 'Repository';
+            // Show User/Owner (2nd to last part) or fallback to Repo Name (last part)
+            const repoName = parts.length >= 2 ? parts[parts.length - 2] : (parts.pop() || 'Repository');
             repoLink.textContent = repoName;
             repoLink.href = cleanUrl.replace(/\.git$/, '');
           }
