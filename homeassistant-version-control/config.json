@@ -31,14 +31,8 @@
   "environment": {
     "CONFIG_PATH": "/config"
   },
-  "options": {
-    "additional_extensions": []
-  },
-  "schema": {
-    "additional_extensions": [
-      "str"
-    ]
-  },
+  "options": {},
+  "schema": {},
   "healthcheck": {
     "test": [
       "CMD",
