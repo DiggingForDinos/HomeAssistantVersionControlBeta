@@ -1725,21 +1725,10 @@ const debounceTimers = new Map();
 let watcher = null;
 
 function initializeWatcher() {
-  const allowedExtensions = getConfiguredExtensions();
-  const extensionsStr = allowedExtensions.map(ext => ext.substring(1)).join(','); // Remove dot for pattern
-  console.log(`[init] Setting up file watcher for: ${CONFIG_PATH}/**/*{${extensionsStr}}`);
+  console.log(`[init] Setting up file watcher for: ${CONFIG_PATH}/**/*`);
 
-  // Use a more specific pattern to avoid ELOOP errors
-  // Also watch lovelace storage files
-  const watchPattern = [
-    `${CONFIG_PATH}/**/*{${extensionsStr}}`,
-    `${CONFIG_PATH}/.storage/lovelace`,
-    `${CONFIG_PATH}/.storage/lovelace_dashboards`,
-    `${CONFIG_PATH}/.storage/lovelace_resources`,
-    `${CONFIG_PATH}/.storage/lovelace.*`,
-    `${CONFIG_PATH}/.gitignore`,
-    `${CONFIG_PATH}/.gitconfig`
-  ];
+  // Watch all files - let git's .gitignore handle filtering
+  const watchPattern = `${CONFIG_PATH}/**/*`;
 
   watcher = chokidar.watch(watchPattern, {
     persistent: true,
@@ -1793,19 +1782,8 @@ function initializeWatcher() {
           await initRepo();
         }
 
-        // Check if file is a config file (has allowed extension), lovelace storage file, or git control file
-        const hasAllowedExt = getConfiguredExtensions().some(ext =>
-          relativePath.toLowerCase().endsWith(ext)
-        );
-
-        const isLovelaceFile = relativePath.startsWith('.storage/lovelace');
-        const isGitControlFile = relativePath === '.gitignore' || relativePath === '.gitconfig';
-
-        if (!hasAllowedExt && !isLovelaceFile && !isGitControlFile) {
-          console.log(`[watcher] Skipping non-config file: ${relativePath}`);
-          debounceTimers.delete(filePath);
-          return;
-        }
+        // No extension filtering here - let git's .gitignore handle what gets committed
+        // The watcher triggers on any file change, git add . respects user's .gitignore
 
         // Check if this is only a formatting change (for YAML files)
         // Removed: We want to track ALL changes, including comments and formatting
