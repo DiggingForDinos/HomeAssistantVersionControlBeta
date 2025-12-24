@@ -448,10 +448,9 @@ function generateGitignoreContent(extraIgnores = [], includeSecrets = false, use
     }
   }
 
-  // Explicitly ignore secrets.yaml unless configured to include it
-  if (!includeSecrets) {
-    content += `\n# Limit exposure of secrets\nsecrets.yaml\n`;
-  }
+  // Always ignore secrets.yaml by default - user must manually remove from .gitignore to track locally
+  // The includeSecrets toggle only controls cloud push, not local tracking
+  content += `\n# Limit exposure of secrets (remove this line to track locally)\nsecrets.yaml\n`;
 
   return content;
 }
@@ -790,23 +789,6 @@ async function initRepo() {
         const gitignoreContent = generateGitignoreContent(nestedRepos, includeSecrets, additionalExtensions);
         await fsPromises.writeFile(gitignorePath, gitignoreContent, 'utf8');
         console.log('[init] Created .gitignore in CONFIG_PATH');
-      }
-    }
-
-    // Protect secrets.yaml - if not configured to include secrets, ensure it's not tracked
-    const includeSecrets = runtimeSettings.cloudSync ? runtimeSettings.cloudSync.includeSecrets : false;
-    if (!includeSecrets && isRepo) {
-      try {
-        // Check if secrets.yaml is tracked by git
-        const secretsPath = path.join(CONFIG_PATH, 'secrets.yaml');
-        const lsResult = await gitRaw(['ls-files', 'secrets.yaml']);
-        if (lsResult && lsResult.trim()) {
-          console.log('[init] ⚠️  secrets.yaml is tracked but includeSecrets is OFF - removing from index...');
-          await gitRmCached('secrets.yaml');
-          console.log('[init] ✓ Removed secrets.yaml from git tracking (file preserved on disk)');
-        }
-      } catch (error) {
-        // Ignore errors - file might not exist or other edge cases
       }
     }
 
@@ -1877,18 +1859,9 @@ function initializeWatcher() {
         }
 
         // Get all staged files (git already filtered based on .gitignore)
-        let stagedFiles = status.files
+        const stagedFiles = status.files
           .filter(f => f.index !== ' ' && f.index !== '?')
           .map(f => f.path.trim());
-
-        // Pre-commit safety: check for secrets.yaml if includeSecrets is OFF
-        const includeSecrets = runtimeSettings.cloudSync ? runtimeSettings.cloudSync.includeSecrets : false;
-        if (!includeSecrets && stagedFiles.includes('secrets.yaml')) {
-          console.log('[watcher] ⚠️  secrets.yaml was staged but includeSecrets is OFF - unstaging...');
-          await gitResetHead('secrets.yaml');
-          stagedFiles = stagedFiles.filter(f => f !== 'secrets.yaml');
-          console.log('[watcher] ✓ Unstaged secrets.yaml before commit');
-        }
 
         console.log(`[watcher] Staged files (respecting .gitignore): ${stagedFiles.join(', ')} (${stagedFiles.length} file(s))`);
 

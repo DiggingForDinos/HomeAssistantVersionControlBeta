@@ -45,7 +45,7 @@ Home Assistant Version Control provides complete version history for your setup.
 *Every change synced to the cloud.* Push your configuration to GitHub or Gitea for secure off-site storage.
 * **Automatic Sync:** Choose to push after every commit, hourly, daily, or manually.
 * **Clean History:** Uses force push to keep your remote repository in sync with local history.
-* **Secrets Protection:** `secrets.yaml` is excluded from Git by default (both locally and remotely) to prevent accidental storing of credentials. This can be toggled in the Cloud settings.
+* **Secrets Protection:** `secrets.yaml` is excluded from Git by default. To track it locally, remove it from `.gitignore`. The Cloud settings toggle controls whether it gets pushed to remote (default: off).
 
 ### Customization
 * **Color Theme:** Choose from seven preset color palettes.

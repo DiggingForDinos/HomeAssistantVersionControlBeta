@@ -9,7 +9,9 @@
 ### Fixed
 - **Watcher Noise:** Exclude database files (`.db`, `.db-wal`), log files, and zigbee2mqtt runtime files from triggering the watcher.
 - **Options Reading:** Fixed async file reading for add-on configuration options.
-- **Secrets Protection:** Automatically removes `secrets.yaml` from git tracking on startup and prevents it from being staged (respects the includeSecrets toggle).
+
+### Changed
+- **Secrets Handling:** `secrets.yaml` is always in `.gitignore` by default. Remove it from `.gitignore` to track locally. The Cloud toggle only controls whether it gets pushed to remote.
 
 ## [1.0.3]
 
