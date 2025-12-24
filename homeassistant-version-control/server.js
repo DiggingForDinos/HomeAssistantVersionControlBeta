@@ -653,7 +653,7 @@ async function initRepo() {
 
     // Also check for config.json in the data directory
     try {
-      const configData = await fs.readFile('/data/options.json', 'utf-8');
+      const configData = await fsPromises.readFile('/data/options.json', 'utf-8');
       const config = JSON.parse(configData);
       if (config.liveConfigPath) {
         CONFIG_PATH = config.liveConfigPath;
