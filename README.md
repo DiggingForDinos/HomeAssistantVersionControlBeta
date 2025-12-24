@@ -6,7 +6,7 @@ Home Assistant Version Control provides complete version history for your setup.
 
 ---
 
-## What's New
+## What's New?
 - **Cloud Backup:** Push your configuration to a private GitHub or Gitea repository. Choose to sync **manually**, **daily**, or **automatically after every change**.
 - **Track More than Just YAML:** Now you can select any file format to track and backup! Configure extensions like `.sh`, `.py`, `.json` directly in the add-on's Configuration tab.
 * **Recover Deleted Items:** View and restore files, automations, and scripts that have been deleted. Look for the "Deleted" option in the sort menu.
