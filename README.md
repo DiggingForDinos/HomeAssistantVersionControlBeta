@@ -179,14 +179,14 @@ The add-on automatically tracks configuration files while ignoring system files.
 
 ### Customizing Tracked Files
 
-The add-on fully respects your `.gitignore` file. If you need to track additional file types (like `.sh`, `.json`, or `.py` files), simply add them to your `.gitignore` using the whitelist pattern.
+Track additional file types by adding extensions in the add-on's **Configuration** tab. Type an extension (e.g., `sh`, `py`, `json`) and press Enter - it becomes a removable tag. Restart the add-on to apply.
 
-**Example:** To also track shell scripts, add this line to `/config/.gitignore`:
+Alternatively, manually edit `/config/.gitignore` and add whitelist patterns:
 ```gitignore
 !*.sh
 ```
 
-The add-on will automatically detect changes to any whitelisted files and include them in commits. Your custom `.gitignore` patterns are preserved - the add-on only creates a default `.gitignore` if one doesn't already exist.
+The add-on respects your custom `.gitignore` patterns and only updates the managed section when you configure extensions via the UI.
 
 ## API
 

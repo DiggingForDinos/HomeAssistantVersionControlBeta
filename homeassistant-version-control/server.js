@@ -1777,19 +1777,40 @@ function initializeWatcher() {
       stabilityThreshold: 2000,
       pollInterval: 100
     },
-    ignored: (path, stats) => {
+    ignored: (filePath, stats) => {
       // Ignore if path contains these directories (but not .storage for lovelace files)
-      if (/(\/|^)\.(git|hg|svn|ssh|docker|ssl|keys|certs|node_modules)(\/|$)/.test(path)) {
+      if (/(\/|^)\.(git|hg|svn|ssh|docker|ssl|keys|certs|node_modules)(\/|$)/.test(filePath)) {
         return true;
       }
 
       // Explicitly ignore .storage files except lovelace files
-      if (path.includes('/.storage/') && !path.includes('/.storage/lovelace')) {
+      if (filePath.includes('/.storage/') && !filePath.includes('/.storage/lovelace')) {
+        return true;
+      }
+
+      // Ignore database files and related files (very frequent writes)
+      if (/\.(db|db-wal|db-shm|db-journal)$/.test(filePath)) {
+        return true;
+      }
+
+      // Ignore log files
+      if (/\.log(\.\d+)?$/.test(filePath) || filePath.includes('/log/')) {
+        return true;
+      }
+
+      // Ignore common binary and temporary files
+      if (/\.(pyc|pyo|tmp|temp|bak|swp|swo)$/.test(filePath)) {
+        return true;
+      }
+
+      // Ignore zigbee2mqtt runtime files (state.json, database.db, logs)
+      if (filePath.includes('/zigbee2mqtt/') &&
+        (filePath.includes('/log/') || filePath.endsWith('state.json') || filePath.endsWith('database.db'))) {
         return true;
       }
 
       // Avoid infinite loops - if path has too many repetitions of /config/
-      const configCount = (path.match(/\/config\//g) || []).length;
+      const configCount = (filePath.match(/\/config\//g) || []).length;
       if (configCount > 3) {
         return true;
       }
