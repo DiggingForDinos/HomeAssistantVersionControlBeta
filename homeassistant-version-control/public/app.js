@@ -1407,6 +1407,9 @@ async function loadCloudSyncSettings() {
               const repoName = parts.length >= 2 ? parts[parts.length - 2] : (parts.pop() || 'Repository');
               repoLink.textContent = repoName;
               repoLink.href = cleanUrl.replace(/\.git$/, '');
+
+              // Try to load avatar
+              updateCustomRepoAvatar(settings.customRemoteUrl);
             }
           }
         }
@@ -1414,6 +1417,47 @@ async function loadCloudSyncSettings() {
     }
   } catch (error) {
     console.error('Failed to load cloud sync settings:', error);
+  }
+}
+
+async function updateCustomRepoAvatar(remoteUrl) {
+  const avatarImg = document.getElementById('customRepoAvatar');
+  const iconSvg = document.getElementById('customRepoIcon');
+  if (!avatarImg || !iconSvg || !remoteUrl) return;
+
+  // Reset to icon initially (or keep current if reloading)
+  // avatarImg.style.display = 'none';
+  // iconSvg.style.display = 'block';
+
+  try {
+    // Call backend API to get avatar URL (handles Gitea API auth)
+    const response = await fetch(`/api/cloud-sync/avatar?remoteUrl=${encodeURIComponent(remoteUrl)}`);
+    const data = await response.json();
+
+    if (data.success && data.avatarUrl) {
+      console.log('Got avatar URL:', data.avatarUrl);
+
+      avatarImg.onload = () => {
+        avatarImg.style.display = 'block';
+        iconSvg.style.display = 'none';
+      };
+
+      avatarImg.onerror = () => {
+        console.warn('Avatar image failed to load');
+        avatarImg.style.display = 'none';
+        iconSvg.style.display = 'block';
+      };
+
+      avatarImg.src = data.avatarUrl;
+    } else {
+      console.log('No avatar found via API, falling back to icon');
+      avatarImg.style.display = 'none';
+      iconSvg.style.display = 'block';
+    }
+  } catch (e) {
+    console.warn('Error fetching avatar:', e);
+    avatarImg.style.display = 'none';
+    iconSvg.style.display = 'block';
   }
 }
 
@@ -1560,6 +1604,9 @@ async function testCustomConnection() {
         const repoName = parts.length >= 2 ? parts[parts.length - 2] : (parts.pop() || 'Repository');
         repoLink.textContent = repoName;
         repoLink.href = cleanUrl.replace(/\.git$/, '');
+
+        // Try to load avatar
+        updateCustomRepoAvatar(remoteUrl);
       }
     } else {
       showNotification(`Connection failed: ${data.error}`, 'error', 5000);

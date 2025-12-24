@@ -3649,6 +3649,63 @@ app.get('/api/cloud-sync/settings', async (req, res) => {
   }
 });
 
+// Get avatar URL for custom repo (Gitea/Forgejo)
+app.get('/api/cloud-sync/avatar', async (req, res) => {
+  try {
+    const { remoteUrl } = req.query;
+    if (!remoteUrl) {
+      return res.status(400).json({ success: false, error: 'remoteUrl is required' });
+    }
+
+    // Use stored token if available for authentication
+    const settings = runtimeSettings.cloudSync || {};
+    let token = '';
+
+    // Extract token from stored URL if present
+    if (settings.remoteUrl && settings.remoteUrl.includes('@')) {
+      const match = settings.remoteUrl.match(/:\/\/(.*?)@/);
+      if (match) token = match[1];
+    }
+
+    // Parse URL to get base URL and username
+    // Expected: http(s)://host:port/username/repo.git
+    // We want: http(s)://host:port/api/v1/users/username
+    const cleanUrl = remoteUrl.replace(/:\/\/(.*?)@/, '://'); // Strip token for parsing
+    const urlObj = new URL(cleanUrl);
+    const pathParts = urlObj.pathname.split('/').filter(p => p);
+
+    if (pathParts.length < 2) {
+      return res.status(400).json({ success: false, error: 'Invalid repo URL format' });
+    }
+
+    const username = pathParts[0];
+    const apiUrl = `${urlObj.origin}/api/v1/users/${username}`;
+
+    console.log(`[avatar] Fetching Gitea avatar from API: ${apiUrl}`);
+
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `token ${token}`;
+    }
+
+    const apiRes = await fetch(apiUrl, { headers });
+    if (!apiRes.ok) {
+      throw new Error(`Gitea API returned ${apiRes.status}`);
+    }
+
+    const userData = await apiRes.json();
+    if (userData && userData.avatar_url) {
+      res.json({ success: true, avatarUrl: userData.avatar_url });
+    } else {
+      res.json({ success: false, error: 'No avatar_url in response' });
+    }
+
+  } catch (error) {
+    console.warn(`[avatar] Failed to fetch avatar: ${error.message}`);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Keep the process alive
 process.on('SIGTERM', () => {
   console.log('[init] SIGTERM received, shutting down...');
