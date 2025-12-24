@@ -177,7 +177,16 @@ The add-on automatically tracks configuration files while ignoring system files.
 | `esphome/*.yaml` | Temporary files |
 | All other `.yaml` and `.yml` files | |
 
----
+### Customizing Tracked Files
+
+The add-on fully respects your `.gitignore` file. If you need to track additional file types (like `.sh`, `.json`, or `.py` files), simply add them to your `.gitignore` using the whitelist pattern.
+
+**Example:** To also track shell scripts, add this line to `/config/.gitignore`:
+```gitignore
+!*.sh
+```
+
+The add-on will automatically detect changes to any whitelisted files and include them in commits. Your custom `.gitignore` patterns are preserved - the add-on only creates a default `.gitignore` if one doesn't already exist.
 
 ## API
 
