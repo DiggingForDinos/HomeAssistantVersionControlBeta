@@ -1179,7 +1179,7 @@ function loadExtensionsFromSettings(settings) {
 
 async function loadExtensionsSettings() {
   try {
-    const response = await fetch('/api/runtime-settings');
+    const response = await fetch(`${API}/runtime-settings`);
     const data = await response.json();
     if (data.success && data.settings) {
       loadExtensionsFromSettings(data.settings);
@@ -1322,7 +1322,7 @@ function handleCloudSyncToggle() {
 
 async function loadCloudSyncSettings() {
   try {
-    const response = await fetch('/api/cloud-sync/settings');
+    const response = await fetch(`${API}/cloud-sync/settings`);
     const data = await response.json();
 
     if (data.success) {
@@ -1372,7 +1372,7 @@ async function loadCloudSyncSettings() {
       if (secretsToggleContainer) {
         // Check if secrets.yaml is excluded via extensions config
         try {
-          const extResponse = await fetch('/api/runtime-settings');
+          const extResponse = await fetch(`${API}/runtime-settings`);
           const extData = await extResponse.json();
           const excludeFiles = extData?.settings?.extensions?.exclude || [];
           const secretsExcluded = excludeFiles.includes('secrets.yaml');
@@ -1530,7 +1530,7 @@ async function saveCloudSyncSettings(silent = false) {
     };
     console.log('[saveCloudSyncSettings] Sending payload:', payload);
 
-    const response = await fetch('/api/cloud-sync/settings', {
+    const response = await fetch(`${API}/cloud-sync/settings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -7048,7 +7048,7 @@ async function handleCloudProviderChange() {
 
     // When switching to Custom, restore the stored Custom URL and connected state
     try {
-      const response = await fetch('/api/cloud-sync/settings');
+      const response = await fetch(`${API}/cloud-sync/settings`);
       const data = await response.json();
       if (data.success && data.settings.customRemoteUrl) {
         // Restore URL to input
